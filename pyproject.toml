@@ -9,5 +9,8 @@ readme = "README.md"
 requires-python = "==3.11.*"
 authors = [{name="CookieBox26", email="cookie-box@cookie-box.info"}]
 dependencies = [
+    "beautifulsoup4",
+    "jinja2",
+    "shirotsubaki",
     "toml",
 ]
