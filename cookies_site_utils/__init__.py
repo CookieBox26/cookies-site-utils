@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from pathlib import Path
 import os
 import toml
+from contextlib import contextmanager
 
 
 def validate_and_collect_page_paths(path, files_allowed, subdirs_allowed, collect_page=True):
@@ -249,3 +250,24 @@ class Sitemap(File):
             '</urlset>',
         ]
         self.write_text('\n'.join(lines) + '\n')
+
+
+@contextmanager
+def index_generation_context(
+    site_root,  # サイトのファイル群のルート (相対パスをページ更新日管理とサイトマップとログに利用)
+    site_name,  # サイト名 (ページタイトルが「hoge - site_name」になっているかチェックする用)
+    css_timestamp,  # ページの CSS リンクのクエリパラメータとするタイムスタンプ
+    last_counts_path,  # ページ文字数最終更新日の管理ファイルのパス
+    domain='',  # ドメイン https://hoge.com/ (サイトマップ用) (サイトマップ生成しない場合は不要)
+):
+    """サイトのインデックスページとサイトマップを生成するためのコンテクストを与えます
+    """
+    # サイト内のすべてのファイルで利用するパラメータをセット
+    File.site_root = site_root
+    File.domain = domain
+    # サイト内のすべてのページで利用するパラメータをセット
+    Page.site_name = site_name
+    Page.css_timestamp = css_timestamp
+    Page.load_last_counts(last_counts_path)  # ページ文字数最終更新日をロード
+    yield
+    Page.dump_last_counts(last_counts_path)  # ページ文字数最終更新日をダンプ
