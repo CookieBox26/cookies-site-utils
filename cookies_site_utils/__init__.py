@@ -218,10 +218,11 @@ class IndexPage(Page):
         for article_path in validate_and_collect_page_paths(article_dir, [], []):
             article = ArticlePage(article_path, all_cats, all_cat_paths)
             self.articles.append(article)
-        self.articles.sort(key=lambda a: a.timestamp, reverse=True)
-        list_article_recent = Page.as_ul_of_links(self.articles, self.path, with_ts=True, n_max=10)
-        self.articles.sort(key=lambda a: a.title)
+        self.articles.sort(key=lambda a: a.title)  # 先にタイトル順ソート
         list_article = Page.as_ul_of_links(self.articles, self.path, with_ts=True)
+        self.articles.sort(key=lambda a: a.timestamp, reverse=True)  # 同一更新日はタイトル順に
+        list_article_recent = Page.as_ul_of_links(self.articles, self.path, with_ts=True, n_max=10)
+        self.articles.sort(key=lambda a: a.title)  # 無駄なサイトマップ更新を防ぐため再度タイトル順
 
         # カテゴリページ生成
         print('[INFO] カテゴリページ生成')
