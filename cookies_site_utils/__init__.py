@@ -5,6 +5,7 @@ from pathlib import Path
 import os
 import toml
 from contextlib import contextmanager
+import importlib.resources
 
 
 def validate_and_collect_page_paths(path, files_allowed, subdirs_allowed, collect_page=True):
@@ -53,6 +54,7 @@ class File:
 class Page(File):
     site_name = None
     last_counts = None
+    force_keep_timestamp = False
 
     @classmethod
     def load_last_counts(cls, last_counts_path):
@@ -64,6 +66,9 @@ class Page(File):
     def dump_last_counts(cls, last_counts_path):
         with open(last_counts_path, mode='w', encoding='utf8', newline='\n') as f:
             toml.dump({'pages': [v[1] for v in sorted(cls.last_counts.items())]}, f)
+
+    def get_file_timestamp(self):
+        return datetime.fromtimestamp(self.path.stat().st_mtime).strftime('%Y-%m-%d')
 
     def eval(self):
         text = self.path.read_text(encoding='utf8')
@@ -99,12 +104,23 @@ class Page(File):
             last_count = Page.last_counts[self.rel_path]['count']
         else:
             Page.last_counts[self.rel_path] = {'rel_path': self.rel_path}
-        if count == last_count:  # 文字数が一致していれば文字数更新日
-            self.timestamp = Page.last_counts[self.rel_path]['timestamp']
-        else:  # そうでなければファイル文字数の最終変更日
-            self.timestamp = datetime.fromtimestamp(self.path.stat().st_mtime).strftime('%Y-%m-%d')
-            Page.last_counts[self.rel_path]['timestamp'] = self.timestamp
-            Page.last_counts[self.rel_path]['count'] = count
+
+        if not Page.force_keep_timestamp:
+            if count == last_count:  # 文字数が前回と一致していれば前回登録時のタイムスタンプを取る
+                self.timestamp = Page.last_counts[self.rel_path]['timestamp']
+            else:  # 文字数が前回と不一致であればファイルタイムスタンプを取る
+                self.timestamp = self.get_file_timestamp()
+                Page.last_counts[self.rel_path]['timestamp'] = self.timestamp  # タイムスタンプ登録
+                Page.last_counts[self.rel_path]['count'] = count  # 文字数登録
+        else:  # タイムスタンプを保つモード (メンテナンス用)
+            # 前回のタイムスタンプがあれば取りなければファイルタイムスタンプを取る
+            self.timestamp = Page.last_counts[self.rel_path].get('timestamp', None)
+            if self.timestamp is None:
+                self.timestamp = self.get_file_timestamp()
+                Page.last_counts[self.rel_path]['timestamp'] = self.timestamp  # タイムスタンプ登録
+            Page.last_counts[self.rel_path]['count'] = count  # 文字数登録
+
+
         print(self.timestamp, self.title, f'({last_count} --> {count})')
         return soup
 
@@ -272,3 +288,15 @@ def index_generation_context(
     Page.load_last_counts(last_counts_path)  # ページ文字数最終更新日をロード
     yield
     Page.dump_last_counts(last_counts_path)  # ページ文字数最終更新日をダンプ
+
+
+def get_style_css(path):
+    resource_path = importlib.resources.files('cookies_site_utils') / 'resources/style.css'
+    content = resource_path.read_text(encoding='utf-8')
+    path.write_text(content, newline='\n', encoding='utf8')
+
+
+def get_func_js(path):
+    resource_path = importlib.resources.files('cookies_site_utils') / 'resources/funcs.js'
+    content = resource_path.read_text(encoding='utf-8')
+    path.write_text(content, newline='\n', encoding='utf8')
