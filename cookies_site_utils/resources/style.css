@@ -12,11 +12,14 @@
   --font-family-mono: 'JetBrains Mono', 'M PLUS 1 Code', monospace;
   --font-weight-mono: 400;
   --code: linear-gradient(#f5f8fb 50%, #fdfdfd 50%);
+  --odd: #f5f8fb;
+  --even: #fdfdfd;
   --console: #394149;
   --punctuation: #5f6364;
   --string: #2f9c0a;
   --keyword: #1990b8;
   --number: #c92c2c;
+  --operator: #a67f59;
   --doughnut: #d2691e;
   --chocolate: #808080;
 }
@@ -28,11 +31,14 @@
   --text-link: #3fc2d9;
   --border: #667584;
   --code: linear-gradient(#2f373e 50%, #343d45 50%);
+  --odd: #2f373e;
+  --even: #343d45;
   --console: #2f373e;
   --punctuation: #bbc1c7;
   --string: #6ac94a;
   --keyword: #5bc0e1;
   --number: #e46c6c;
+  --operator: #deb14f;
   --doughnut: #cc8a43;
   --chocolate: #a9a9a9;
 }
@@ -275,8 +281,6 @@ span.index-ts:before {
   content: 'Updated: ';
 }
 
-
-
 /* コードブロック・インラインコード共通 */
 code[class*="language-"] {
   font-family: var(--font-family-mono);
@@ -288,24 +292,24 @@ code[class*="language-"] {
   border-radius: 0.3em !important;
   color: var(--text) !important;
 }
-.token.entity,.token.operator,.token.url,.token.variable {
+.token.entity, .token.operator, .token.url, .token.variable {
   background: transparent;
+  color: var(--operator);
 }
 .token.punctuation {
   color: var(--punctuation);
 }
-.token.attr-name,.token.builtin,.token.char,.token.function,
-.token.inserted,.token.selector,.token.string {
+.token.attr-name, .token.builtin, .token.char, .token.function,
+.token.inserted, .token.selector, .token.string {
   color: var(--string);
 }
-.token.atrule,.token.attr-value,.token.class-name,.token.keyword {
+.token.atrule, .token.attr-value, .token.class-name, .token.keyword {
   color: var(--keyword);
 }
 .token.boolean,.token.constant,.token.deleted,.token.function-name,
 .token.number,.token.property,.token.symbol,.token.tag {
   color: var(--number);
 }
-
 
 /* コードブロック */
 pre[class*="language-"] {
@@ -332,7 +336,7 @@ pre[class*="language-"]::before, pre[class*="language-"]::after {
 }
 :not(pre)>code[class*=language-], :not(pre)>code[class*=language-] span {
   background-color: var(--summary-surface) !important;
-  color: var(--text) !important;
+  /* color: var(--text) !important; */
 }
 
 /* GitHub Gist */
@@ -351,13 +355,31 @@ div.gist-data td {
   display: none;
 }
 div.gist-data tr:nth-child(odd) {
-  background-color: #fdfdfd !important;
+  background-color: var(--odd) !important;
 }
 div.gist-data tr:nth-child(even) {
-  background-color: #f5f8fb !important;
+  background-color: var(--even) !important;
 }
 div.gist-data span.pl-s:after {
   content: ' ';
+}
+.gist .blob-code-inner {
+  color: var(--punctuation) !important;
+}
+span.pl-v {
+  color: var(--operator) !important;
+}
+span.pl-c1, span.pl-en {
+  color: var(--punctuation) !important;
+}
+span.pl-s {
+  color: var(--string) !important;
+}
+span.pl-k {
+  color: var(--keyword) !important;
+}
+span.pl-s1 {
+  color: var(--text);
 }
 
 @media screen and (min-width: 540px) {
