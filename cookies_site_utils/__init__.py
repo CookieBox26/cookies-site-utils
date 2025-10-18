@@ -51,6 +51,14 @@ class File:
             print(f'新規作成 {self.rel_path}')
         self.path.write_text(text, newline='\n', encoding='utf8')
 
+    def load_style_css(self):
+        resource_path = importlib.resources.files('cookies_site_utils') / 'resources/style.css'
+        self.write_text(resource_path.read_text(encoding='utf-8'))
+
+    def load_func_js(self):
+        resource_path = importlib.resources.files('cookies_site_utils') / 'resources/funcs.js'
+        self.write_text(resource_path.read_text(encoding='utf-8'))
+
 
 class Page(File):
     site_name = None
@@ -274,31 +282,27 @@ class Sitemap(File):
 
 
 @contextmanager
-def index_generation_context(
-    site_root,  # サイトのファイル群のルート (相対パスをページ更新日管理とサイトマップとログに利用)
+def index_generation(
     site_name,  # サイト名 (ページタイトルが「hoge - site_name」になっているかチェックする用)
+    site_root,  # サイトのファイル群のルート (相対パスをページ更新日管理とサイトマップとログに利用)
+    style_css,  # style.css のパス (便利ツール側リソースを強制的に同期)
+    funcs_js,  # funcs.js のパス (便利ツール側リソースを強制的に同期)
     last_counts_path,  # ページ文字数最終更新日の管理ファイルのパス
     domain='',  # ドメイン https://hoge.com/ (サイトマップ用) (サイトマップ生成しない場合は不要)
+    force_keep_timestamp = False,  # ページ文字数が変わってもタイムスタンプを保つ (メンテナンス用)
 ):
     """サイトのインデックスページとサイトマップを生成するためのコンテクストを与えます
     """
+    Page.force_keep_timestamp = force_keep_timestamp
+
     # サイト内のすべてのファイルで利用するパラメータをセット
     File.site_root = site_root
     File.domain = domain
+    # style.css と funcs.js は便利ツール側リソースを強制的に同期
+    File(style_css).load_style_css()
+    File(funcs_js).load_func_js()
     # サイト内のすべてのページで利用するパラメータをセット
     Page.site_name = site_name
     Page.load_last_counts(last_counts_path)  # ページ文字数最終更新日をロード
     yield
     Page.dump_last_counts(last_counts_path)  # ページ文字数最終更新日をダンプ
-
-
-def get_style_css(path):
-    resource_path = importlib.resources.files('cookies_site_utils') / 'resources/style.css'
-    content = resource_path.read_text(encoding='utf-8')
-    path.write_text(content, newline='\n', encoding='utf8')
-
-
-def get_func_js(path):
-    resource_path = importlib.resources.files('cookies_site_utils') / 'resources/funcs.js'
-    content = resource_path.read_text(encoding='utf-8')
-    path.write_text(content, newline='\n', encoding='utf8')
