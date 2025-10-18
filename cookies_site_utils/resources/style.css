@@ -21,7 +21,7 @@
   --number: #c92c2c;
   --operator: #a67f59;
   --doughnut: #d2691e;
-  --chocolate: #808080;
+  --chocolate: #83898f;  /* #808080 */
 }
 :root[data-mode='dark'] {
   --surface: #2f373e;
@@ -40,11 +40,24 @@
   --number: #e46c6c;
   --operator: #deb14f;
   --doughnut: #cc8a43;
-  --chocolate: #a9a9a9;
+  --chocolate: #9ba5af;  /* #a9a9a9 */
 }
-#mode-toggle-0, #mode-toggle-1 {
+.mode-btn {
   user-select: none;
   cursor: pointer;
+  border: 1px solid var(--border);
+  width: 1em;
+  height: 1em;
+}
+.mode-container {
+  display: flex;
+  gap: 0.25em;
+}
+[id^="mode-light-"] {
+  background: #ffffff;
+}
+[id^="mode-dark-"] {
+  background: #38414a;
 }
 
 body {
@@ -401,6 +414,9 @@ span.pl-s1 {
     justify-content: space-between;
     padding: 10px 20px 5px;
     font-size: 88%;
+  }
+  div#smartphone-header > :first-child {
+    margin-right: auto;
   }
   div#sidebar {
     display: none;

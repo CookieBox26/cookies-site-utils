@@ -1,27 +1,32 @@
-function createSidebar(theme = 'cookie-box', mainPage = false, lang = 'ja') {
+function setModeButton(elmId, mode) {
+    document.getElementById(elmId).addEventListener('click', () => {
+        document.documentElement.setAttribute('data-mode', mode);
+        localStorage.setItem('mode', mode);
+    });
+}
+
+function createModeButtons(i) {
+    let btns = '<div class="mode-container">配色切替';
+    btns += `<div id="mode-light-${i}" class="mode-btn"></div>`;
+    btns += `<div id="mode-dark-${i}" class="mode-btn"></div>`;
+    btns += '</div>';
+    return btns;
+}
+
+function createSidebar(repo = 'cookie-box', mainPage = false, lang = 'ja') {
     let indexUrl = mainPage ? 'index.html' : '../index.html';
     let back = `<a class="logo" href="${indexUrl}"></a>`;
-    let lightDark0 = '<span id="mode-toggle-0">&#x1f317;</span>';
-    let lightDark1 = '<a id="mode-toggle-1">ライト・ダーク切替</a>';
-    let gitHub;
-    switch (theme) {
-        case 'cookipedia':
-            gitHub = '<a href="https://github.com/CookieBox26/cookipedia/issues">Issues</a>';
-            break;
-        default:
-            gitHub = '<a href="https://github.com/CookieBox26/cookie-box/issues">Issues</a>';
-    }
+    let gitHub = `<a href="https://github.com/CookieBox26/${repo}/issues">Issues</a>`;
+
+    let spHeaderLeft = mainPage ? '<span></span>' : back;
+    let modeButtons0 = createModeButtons(0);
+    let modeButtons1 = createModeButtons(1);
+    document.getElementById('smartphone-header').innerHTML += spHeaderLeft + modeButtons0;
 
     let content = '';
     content += `<h2 class="logo">${back}</h2>`;
-    if (!mainPage) {
-        content += `<p>ご指摘等は ${gitHub} までご連絡ください</p>`;
-        document.getElementById('smartphone-header').innerHTML += back + lightDark0;
-    } else {
-        document.getElementById('smartphone-header').innerHTML += '<span></span>' + lightDark0;
-    }
-
-    content += `<p>${lightDark1}</p>`;
+    content += `<p>${modeButtons1}</p>`;
+    content += mainPage ? '' : `<p>ご指摘等は ${gitHub} までご連絡ください</p>`;
     content += '<p><a href="#">ページの一番上に戻る</a></p>';
     let index = '<h5>ページ内の小見出し一覧</h5>';
     const allHeaders = document.querySelectorAll('h2, h3');
@@ -48,13 +53,10 @@ function createSidebar(theme = 'cookie-box', mainPage = false, lang = 'ja') {
     document.documentElement.setAttribute('data-mode', 'dark');
     const saved = localStorage.getItem('mode');
     if (saved) document.documentElement.setAttribute('data-mode', saved);
+
     for (var i = 0; i < 2; ++i) {
-        document.getElementById(`mode-toggle-${i}`).addEventListener('click', () => {
-            const cur = document.documentElement.getAttribute('data-mode');
-            const next = cur === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-mode', next);
-            localStorage.setItem('mode', next);
-        });
+        setModeButton(`mode-light-${i}`, 'light');
+        setModeButton(`mode-dark-${i}`, 'dark');
     }
 }
 
@@ -107,7 +109,7 @@ function init(mainPage = false, lang = 'ja') {
 
 document.addEventListener('DOMContentLoaded', () => {
     const s = document.getElementById('app');
-    init(s?.dataset.theme || 'cookie-box', s?.dataset.mainpage === 'true', s?.dataset.lang || 'ja');
+    init(s?.dataset.repo || 'cookie-box', s?.dataset.mainpage === 'true', s?.dataset.lang || 'ja');
     if (s?.dataset.mathjax === 'true') loadMathJax();
 });
 
