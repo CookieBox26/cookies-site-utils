@@ -170,7 +170,7 @@ ol.ref {
   counter-reset: li;
   padding-left: 2.25em;
 }
-ol.ref > li {
+ol.ref li {
   position: relative;
   list-style: none;
   word-break: break-all;

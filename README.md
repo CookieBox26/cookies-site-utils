@@ -1,5 +1,112 @@
 # cookies-site-utils
 
+この便利ツールは、私の Web サイト群で共通に利用するリソースや機能 (以下) を管理しています。
+
+- CSS
+- JavaScript
+- 目次ビルド機能
+- 記事編集補助機能
+
+Web サイト側リポジトリは以下のような構成を想定しています。特に ★ と ☆ 以下のファイル及びディレクトリはこの通りである必要があります。
 ```
-uv sync
+www/  # ドメインルート
+  ├ sitemap.xml  # 必要であれば
+  ├ funcs.js
+  ├ css/*.css
+  ├ site_0/  # サイト0 (目次ビルド対象サイト) ★
+  │  ├ index.html
+  │  ├ articles/*.html
+  │  └ categories/*.html
+  ├ site_1/
+
+templates/  # テンプレート置き場
+  ├ site_0/  # サイト0 (目次ビルド対象サイト) のテンプレート ☆
+  │  ├ index_template.html
+  │  └ category_template.html
+
+.last_counts.toml  # ページ文字数最終更新日管理ファイル
+build.py
+```
+
+## 利用方法
+
+ローカル環境ではこの便利ツールをエディタブルモードでインストールしておくと便利です。必要に応じてこちらの便利ツールも修正しながら開発できます。
+```
+pip install -e .
+```
+もしこの便利ツールを修正した場合は、
+
+1. Web サイト側のプッシュより先に、便利ツールの修正をプッシュしてください。
+2. Web サイト側のビルドスクリプト内のインラインメタデータでこの便利ツールのコミットハッシュが指定されているので、修正済みのコミットハッシュに更新ください (さもないと修正が自動ビルドに反映されません)。
+
+## 各機能の説明
+
+### CSS
+`cookies_site_utils.get_style_css(pathlib.Path('site/css/style.css'))` のようにロードできます。
+
+### JavaScript
+`cookies_site_utils.get_funcs_js(pathlib.Path('site/funcs/js'))` のようにロードできます。
+
+### 目次ビルド機能
+記事ページ群からカテゴリページ群と目次ページを自動生成します。使用例は以下を参照ください。  
+
+- https://github.com/CookieBox26/cookie-box/blob/main/build.py
+
+### 記事編集補助機能
+
+既存記事をベースに新規記事を作成したり、記事に参考文献を追加したり、ページ群の CSS タイムスタンプを更新できます。実行したいジョブを TOML ファイルに設定してから以下のコマンドを実行してください。
+```
+python -m cookies_site_utils.article_helper
+```
+- デフォルトで `.helper.toml` を読み込みます。TOML ファイルパスが異なるときは引数に渡してください。
+- 実行できるジョブ種別は以下です。
+  - `COPY_FROM`： 既存記事をベースに記事を新規作成します (既に記事が存在する場合はエラー)。
+  - `ADD_REFERENCE`： 記事に参考文献を追加します。
+  - `UPDATE_CSS_TIMESTAMP`： CSS タイムスタンプを更新します。
+- TOML ファイルに設定する変数は以下です。
+  - `site_name`： サイト名。`COPY_FROM` でのみページタイトルに使います。
+  - `text_editor`, `web_browser`： 指定した場合は最後に編集した記事をエディタとブラウザで開きます。
+  - `job_groups.paths`： このジョブ群を適用するパスのリスト。ワイルドカードも使用できます。
+  - `job_groups.jobs.job_type`： ジョブ種別。ジョブ種別の指定に加えジョブ種別に応じて引数も必要です。
+
+
+#### ジョブ設定例. 既存記事をベースに新規記事を作成して参考文献も追加
+```toml
+site_name = "Cookie Box"
+text_editor = "C:\\Program Files (x86)\\sakura\\sakura.exe"
+web_browser = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+
+[[job_groups]]
+paths = ["site/ja/articles/jupyter-notebook-convert-to-pdf.html"]
+[[job_groups.jobs]]
+job_type = "COPY_FROM"
+base_path = "site/ja/articles/pandas-styler.html"
+new_title = "Jupyter Notebook を PDF に変換する方法"
+categories = { jupyter-notebook = "Jupyter Notebook" }
+[[job_groups.jobs]]
+job_type = "ADD_REFERENCE"
+[[job_groups.jobs.references]]
+url = "https://nbconvert.readthedocs.io/en/latest/usage.html"
+title = "Using as a command line tool &#8212; nbconvert 7.16.6 documentation"
+```
+
+#### ジョブ設定例. ページ群の CSS タイムスタンプを更新
+```toml
+[[job_groups]]
+paths = ["site/ja/articles/pandas-styler.html"]
+jobs = [{ job_type = "UPDATE_CSS_TIMESTAMP", css = "../../css/jupyter.css", timestamp = "2025-10-18" }]
+
+[[job_groups]]
+paths = ["site/ja/articles/*.html", "templates/ja/category_template.html"]
+jobs = [
+  { job_type = "UPDATE_CSS_TIMESTAMP", css = "../../css/style.css", timestamp = "2025-10-18" },
+  { job_type = "UPDATE_CSS_TIMESTAMP", css = "../../css/cookie-box.css", timestamp = "2025-10-18" },
+]
+
+[[job_groups]]
+paths = ["templates/ja/index_template.html"]
+jobs = [
+  { job_type = "UPDATE_CSS_TIMESTAMP", css = "../css/style.css", timestamp = "2025-10-18" },
+  { job_type = "UPDATE_CSS_TIMESTAMP", css = "../css/cookie-box.css", timestamp = "2025-10-18" },
+]
 ```
