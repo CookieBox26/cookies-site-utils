@@ -1,13 +1,15 @@
 from bs4 import BeautifulSoup
 from pathlib import Path
-import datetime
+import os
 import toml
+import datetime
 import subprocess
 import argparse
 
 
 class ArticleHelper:
     site_name = None
+    templates = {}
 
     @classmethod
     def eq(cls, element, element_class_selector):
@@ -61,13 +63,25 @@ class ArticleHelper:
              else:
                  cleared_last = False
 
-    def update_css_timestamp(self, css, timestamp):
+    def update_query_timestamp(self, resource, timestamp):
         if self.soup is None:
             self.soup = BeautifulSoup(self.path.read_text(encoding='utf8'), 'html.parser')
-        links = self.soup.find_all('link', {'rel': 'stylesheet'})
-        for link in links:
-            if link['href'].startswith(css):
-                link['href'] = f'{css}?v={timestamp}'
+
+        parent = self.path.resolve().parent
+        if self.path in ArticleHelper.templates:
+            parent = ArticleHelper.templates[self.path]
+        rel_path = Path(os.path.relpath(Path(resource).resolve(), parent)).as_posix()
+
+        if rel_path.endswith('.css'):
+            links = self.soup.find_all('link', {'rel': 'stylesheet'})
+            for link in links:
+                if link['href'].startswith(rel_path):
+                    link['href'] = f'{rel_path}?v={timestamp}'
+        if rel_path.endswith('.js'):
+            links = self.soup.find_all('script')
+            for link in links:
+                if link['src'].startswith(rel_path):
+                    link['src'] = f'{rel_path}?v={timestamp}'
 
     def add_reference(self, references):
         if self.soup is None:
@@ -93,8 +107,8 @@ class ArticleHelper:
                     new_title=job['new_title'],
                     categories=job['categories'],
                 )
-            if job['job_type'] == 'UPDATE_CSS_TIMESTAMP':
-                ah.update_css_timestamp(job['css'], job['timestamp'])
+            if job['job_type'] == 'UPDATE_QUERY_TIMESTAMP':
+                ah.update_query_timestamp(job['resource'], job['timestamp'])
             if job['job_type'] == 'ADD_REFERENCE':
                 ah.add_reference(job['references'])
         ah.generate()
@@ -106,8 +120,14 @@ class ArticleHelper:
             conf = toml.load(f)
         if 'site_name' in conf:
             ArticleHelper.site_name = conf['site_name']
+        if 'templates' in conf:
+            for template, parent in conf['templates'].items():
+                ArticleHelper.templates[Path(template)] = Path(parent).resolve()
+
         ah = None
         for job_group in conf['job_groups']:
+            if job_group.get('skip', False):
+                continue
             for path_raw in job_group['paths']:
                 path = Path(path_raw)
                 if '*' in path.name:
@@ -115,6 +135,7 @@ class ArticleHelper:
                         ah = cls.run_jobs(path, job_group['jobs'])
                 else:
                     ah = cls.run_jobs(path, job_group['jobs'])
+
         if 'text_editor' in conf:
             subprocess.Popen([conf['text_editor'], ah.path.resolve()])
         if 'web_browser' in conf:

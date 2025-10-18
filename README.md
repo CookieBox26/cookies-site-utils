@@ -55,7 +55,7 @@ pip install -e .
 
 ### 記事編集補助機能
 
-既存記事をベースに新規記事を作成したり、記事に参考文献を追加したり、ページ群の CSS タイムスタンプを更新できます。実行したいジョブを TOML ファイルに設定してから以下のコマンドを実行してください。
+既存記事をベースに新規記事を作成したり、記事に参考文献を追加したり、リソースへのリンクでクエリするタイムスタンプを更新できます。実行したいジョブを TOML ファイルに設定して以下のコマンドを実行してください。
 ```
 python -m cookies_site_utils.article_helper
 ```
@@ -63,19 +63,20 @@ python -m cookies_site_utils.article_helper
 - 実行できるジョブ種別は以下です。
     - `COPY_FROM`： 既存記事をベースに記事を新規作成します (既に記事が存在する場合はエラー)。
     - `ADD_REFERENCE`： 記事に参考文献を追加します。
-    - `UPDATE_CSS_TIMESTAMP`： CSS タイムスタンプを更新します。
+    - `UPDATE_QUERY_TIMESTAMP`： リソースへのリンクでクエリするタイムスタンプを更新します。
 - TOML ファイルに設定する変数は以下です。
-    - `site_name`： サイト名。`COPY_FROM` でのみページタイトルに使います。
+    - `site_name`： サイト名。`COPY_FROM` でのみページタイトルで使います。
+    - `templates`： テンプレートのデプロイ先ディレクトリ。`UPDATE_QUERY_TIMESTAMP` でのみリソースへの相対パスを取得するために使います。
     - `text_editor`, `web_browser`： 指定した場合は最後に編集した記事をエディタとブラウザで開きます。
     - `job_groups.paths`： このジョブ群を適用するパスのリスト。ワイルドカードも使用できます。
-    - `job_groups.jobs.job_type`： ジョブ種別。ジョブ種別の指定に加えジョブ種別に応じて引数も必要です。
-
+    - `job_groups.jobs.job_type`： ジョブ種別の指定。これに加えジョブ種別に応じた引数も必要です。
+    - `job_groups.skip`： `skip = true` でこのジョブ群をスキップします (コメントアウト的に利用ください)。
 
 #### ジョブ設定例. 既存記事をベースに新規記事を作成して参考文献も追加
 ```toml
-site_name = "Cookie Box"
 text_editor = "C:\\Program Files (x86)\\sakura\\sakura.exe"
 web_browser = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+site_name = "Cookie Box"
 
 [[job_groups]]
 paths = ["site/ja/articles/jupyter-notebook-convert-to-pdf.html"]
@@ -91,23 +92,21 @@ url = "https://nbconvert.readthedocs.io/en/latest/usage.html"
 title = "Using as a command line tool &#8212; nbconvert 7.16.6 documentation"
 ```
 
-#### ジョブ設定例. ページ群の CSS タイムスタンプを更新
+#### ジョブ設定例. リソースへのリンクでクエリするタイムスタンプを更新
 ```toml
-[[job_groups]]
-paths = ["site/ja/articles/pandas-styler.html"]
-jobs = [{ job_type = "UPDATE_CSS_TIMESTAMP", css = "../../css/jupyter.css", timestamp = "2025-10-18" }]
+[templates]
+"templates/ja/index_template.html" = "site/ja/"
+"templates/ja/category_template.html" = "site/ja/categories/"
 
 [[job_groups]]
-paths = ["site/ja/articles/*.html", "templates/ja/category_template.html"]
-jobs = [
-  { job_type = "UPDATE_CSS_TIMESTAMP", css = "../../css/style.css", timestamp = "2025-10-18" },
-  { job_type = "UPDATE_CSS_TIMESTAMP", css = "../../css/cookie-box.css", timestamp = "2025-10-18" },
+paths = [
+  "site/ja/articles/*.html",
+  "templates/ja/category_template.html",
+  "templates/ja/index_template.html",
 ]
-
-[[job_groups]]
-paths = ["templates/ja/index_template.html"]
 jobs = [
-  { job_type = "UPDATE_CSS_TIMESTAMP", css = "../css/style.css", timestamp = "2025-10-18" },
-  { job_type = "UPDATE_CSS_TIMESTAMP", css = "../css/cookie-box.css", timestamp = "2025-10-18" },
+  { job_type = "UPDATE_QUERY_TIMESTAMP", resource = "site/css/style.css", timestamp = "2025-10-18" },
+  { job_type = "UPDATE_QUERY_TIMESTAMP", resource = "site/css/cookie-box.css", timestamp = "2025-10-18" },
+  { job_type = "UPDATE_QUERY_TIMESTAMP", resource = "site/funcs.js", timestamp = "2025-10-18" },
 ]
 ```
