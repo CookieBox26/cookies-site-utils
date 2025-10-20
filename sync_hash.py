@@ -58,7 +58,13 @@ def sync_hash(target='../cookie-box/build.py', commit=False):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('target', type=str, nargs='?', default='../cookie-box/build.py')
+    parser.add_argument(
+        'targets', type=str, nargs='?',
+        default='../cookie-box/build.py,../cookipedia/build.py',
+    )
     parser.add_argument('--commit', action='store_true')
     args = parser.parse_args()
-    sync_hash(args.target, args.commit)
+    targets = args.targets.split(',')
+    for target in targets:
+        print('-' * 25 + '\n' + target + ' を更新します')
+        sync_hash(target, args.commit)

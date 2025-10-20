@@ -1,7 +1,7 @@
-function setModeButton(elmId, mode) {
+function setModeButton(localStorageKeyName, elmId, mode) {
     document.getElementById(elmId).addEventListener('click', () => {
         document.documentElement.setAttribute('data-mode', mode);
-        localStorage.setItem('mode', mode);
+        localStorage.setItem(localStorageKeyName, mode);
     });
 }
 
@@ -17,6 +17,7 @@ function createSidebar(repo = 'cookie-box', mainPage = false, lang = 'ja') {
     let indexUrl = mainPage ? 'index.html' : '../index.html';
     let back = `<a class="logo" href="${indexUrl}"></a>`;
     let gitHub = `<a href="https://github.com/CookieBox26/${repo}/issues">Issues</a>`;
+    let localStorageKeyName = (repo == 'cookie-box') ? 'mode' : `mode-${repo}`;
 
     let spHeaderLeft = mainPage ? '<span></span>' : back;
     let modeButtons0 = createModeButtons(0);
@@ -50,13 +51,12 @@ function createSidebar(repo = 'cookie-box', mainPage = false, lang = 'ja') {
         document.getElementById('sidebar').innerHTML += content;
     }
 
-    document.documentElement.setAttribute('data-mode', 'dark');
-    const saved = localStorage.getItem('mode');
+    document.documentElement.setAttribute('data-mode', 'light');
+    const saved = localStorage.getItem(localStorageKeyName);
     if (saved) document.documentElement.setAttribute('data-mode', saved);
-
     for (var i = 0; i < 2; ++i) {
-        setModeButton(`mode-light-${i}`, 'light');
-        setModeButton(`mode-dark-${i}`, 'dark');
+        setModeButton(localStorageKeyName, `mode-light-${i}`, 'light');
+        setModeButton(localStorageKeyName, `mode-dark-${i}`, 'dark');
     }
 }
 

@@ -1,19 +1,19 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP&family=Armata&family=M+PLUS+1+Code:wght@100..700&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400,600&family=Armata&family=M+PLUS+1+Code:wght@400,600&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 :root {
-  --surface: #f5f7f8;
+  --surface: #ffffff;
   --main-surface: #ffffff;
-  --summary-surface: #f5f7f8;
-  --text: #1f2328;
+  --summary-surface: #e9edee;
+  --text: #16181c;
   --text-link: #01889f;
-  --border: #c0c7ce;
+  --border: #a9b2bc;
   --font-family: 'Armata', 'IBM Plex Sans JP', sans-serif;
   --font-weight: 400;
-  --font-weight-header: 500;
+  --font-weight-header: 400;
   --font-family-mono: 'JetBrains Mono', 'M PLUS 1 Code', monospace;
   --font-weight-mono: 400;
-  --code: linear-gradient(#f5f8fb 50%, #fdfdfd 50%);
-  --odd: #f5f8fb;
-  --even: #fdfdfd;
+  --code: linear-gradient(#f2f4f5 50%, #ffffff 50%);
+  --odd: #f2f4f5;
+  --even: #ffffff
   --console: #394149;
   --punctuation: #5f6364;
   --string: #2f9c0a;
@@ -21,26 +21,26 @@
   --number: #c92c2c;
   --operator: #a67f59;
   --doughnut: #d2691e;
-  --chocolate: #83898f;  /* #808080 */
+  --chocolate: #83898f;
 }
 :root[data-mode='dark'] {
-  --surface: #2f373e;
-  --main-surface: #38414a;
-  --summary-surface: #495561;
+  --surface: #2f373e;  /* #23292f */
+  --main-surface: #2f373e;
+  --summary-surface: #404b55;
   --text: #f5f7f8;
   --text-link: #3fc2d9;
   --border: #667584;
-  --code: linear-gradient(#2f373e 50%, #343d45 50%);
-  --odd: #2f373e;
-  --even: #343d45;
-  --console: #2f373e;
+  --code: linear-gradient(#374149 50%, #2f373e 50%);
+  --odd: #374149;
+  --even: #2f373e;
+  --console: #23292f;
   --punctuation: #bbc1c7;
   --string: #6ac94a;
   --keyword: #5bc0e1;
   --number: #e46c6c;
   --operator: #deb14f;
   --doughnut: #cc8a43;
-  --chocolate: #9ba5af;  /* #a9a9a9 */
+  --chocolate: #9ba5af;
 }
 .mode-btn {
   user-select: none;
@@ -57,7 +57,7 @@
   background: #ffffff;
 }
 [id^="mode-dark-"] {
-  background: #38414a;
+  background: #2f373e;
 }
 
 body {
@@ -333,10 +333,10 @@ pre[class*="language-"]>code {
   background-image: var(--code);
 }
 pre.language-text>code {
-  color: #fff !important;
+  color: #f2f4f5 !important;
   padding-top: 0.3em;
   padding-bottom: 0.3em;
-  background: var(--console) !important;
+  background: #23292f !important;
 }
 pre[class*="language-"]::before, pre[class*="language-"]::after {
   box-shadow: none !important;
