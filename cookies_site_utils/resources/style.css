@@ -186,6 +186,8 @@ ol.ref {
 ol.ref li {
   position: relative;
   list-style: none;
+}
+ol.ref a {
   word-break: break-all;
 }
 ol.ref > li:before {
