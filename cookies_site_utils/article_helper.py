@@ -43,9 +43,11 @@ class ArticleHelper:
                  pass
              elif ArticleHelper.eq(child, 'div.categories'):
                  ArticleHelper._clear_children(child)
-                 for cat_path, cat_name in categories.items():
+                 for i_cat, (cat_path, cat_name) in enumerate(categories.items()):
+                     if i_cat != 0:
+                         child.append(', ')
                      a_tag = self.soup.new_tag('a', href=f'../categories/{cat_path}.html')
-                     a_tag.string = cat_path
+                     a_tag.string = cat_name
                      child.append(a_tag)
              elif ArticleHelper.eq(child, 'div.summary'):
                  ul_tag = child.select_one('ul')
