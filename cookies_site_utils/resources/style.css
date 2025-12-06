@@ -393,8 +393,8 @@ span.pl-s {
 span.pl-k {
   color: var(--keyword) !important;
 }
-span.pl-s1 {
-  color: var(--text);
+span.pl-s1, span.pl-smi {
+  color: var(--text) !important;
 }
 
 @media screen and (min-width: 540px) {
