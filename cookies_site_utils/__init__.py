@@ -7,6 +7,7 @@ import toml
 from datetime import datetime
 from contextlib import contextmanager
 import importlib.resources
+import re
 
 
 def validate_and_collect_page_paths(path, files_allowed, subdirs_allowed, collect_page=True):
@@ -60,6 +61,29 @@ class File:
         self.write_text(resource_path.read_text(encoding='utf-8'))
 
 
+class PageCharCounter:
+    """
+    ページの文字数をカウントします
+    - インライン要素の閉じタグ直後の1つ以上の改行を1つの改行とみなします
+    - ブロック要素の閉じタグ直後の1つ以上の改行を無視します
+    """
+    def __init__(self):
+        self.closing_tag = re.compile(r'(</[^>]+>)\n+')
+        self.inline_tags = {'span', 'a', 'code'}
+
+    def _closing_tag_repl(self, match):
+        tag = match.group(1)
+        if tag[2:-1].strip() in self.inline_tags:
+            return tag + '\n'
+        return tag
+
+    def normalize(self, text):
+        return self.closing_tag.sub(self._closing_tag_repl, text)
+
+    def __call__(self, text):
+        return len(self.normalize(text))
+
+
 class Page(File):
     site_name = None
     last_counts = None
@@ -107,7 +131,7 @@ class Page(File):
                 continue
             # print(css)
 
-        count = len(text)
+        count = self.counter(text)
         last_count = 0
         if self.rel_path in Page.last_counts:
             last_count = Page.last_counts[self.rel_path]['count']
@@ -129,13 +153,13 @@ class Page(File):
                 Page.last_counts[self.rel_path]['timestamp'] = self.timestamp  # タイムスタンプ登録
             Page.last_counts[self.rel_path]['count'] = count  # 文字数登録
 
-
         print(self.timestamp, self.title, f'({last_count} --> {count})')
         return soup
 
     def __init__(self, path):
         super().__init__(path)
         self.is_index = (type(self).__name__ == 'IndexPage')
+        self.counter = PageCharCounter()
 
     def generate(self, template, context):
         rendered = template.render(context) + '\n'
