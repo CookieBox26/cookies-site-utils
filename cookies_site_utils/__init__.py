@@ -85,7 +85,6 @@ class PageCharCounter:
 
 
 class Page(File):
-    site_name = None
     last_counts = None
     force_keep_timestamp = False
 
@@ -103,18 +102,20 @@ class Page(File):
     def get_file_timestamp(self):
         return datetime.fromtimestamp(self.path.stat().st_mtime).strftime('%Y-%m-%d')
 
-    def eval(self):
+    def eval(self, subsite_name=None):
         text = self.path.read_text(encoding='utf8')
         soup = BeautifulSoup(text, 'html.parser')
 
         self.title = soup.find('h1').get_text()
         page_title = soup.title.get_text()
-        if self.is_index:
-            if page_title != f'{Page.site_name}':
-                raise ValueError(f'title タグがサイト名になっていない {self.path}')
+        if subsite_name is None:
+            pass
+        elif self.is_index:
+            if page_title != f'{subsite_name}':
+                raise ValueError(f'title タグがサブサイト名でない {self.path}')
         else:
-            if page_title != f'{self.title} - {Page.site_name}':
-                raise ValueError(f'title タグが h1 タグ + サイト名になっていない {self.path}')
+            if page_title != f'{self.title} - {subsite_name}':
+                raise ValueError(f'title タグが h1 タグ + サブサイト名でない {self.path}')
 
         for tag in soup.find_all(True):
             if tag.has_attr('style'):
@@ -161,10 +162,10 @@ class Page(File):
         self.is_index = (type(self).__name__ == 'IndexPage')
         self.counter = PageCharCounter()
 
-    def generate(self, template, context):
+    def generate(self, template, context, subsite_name):
         rendered = template.render(context) + '\n'
         self.write_text(rendered)
-        self.eval()
+        self.eval(subsite_name)
 
     def as_anchor(self, source_path, with_ts=False):
         rel_path_from_source = Path(os.path.relpath(self.path, source_path.parent)).as_posix()
@@ -204,7 +205,7 @@ class CategoryPage(Page):
         self.cat_name = cat_name
         self.articles = []
 
-    def generate(self, template):
+    def generate(self, template, subsite_name):
         self.articles.sort(key=lambda a: a.title)
         context = {
             'category_name': self.cat_name,
@@ -212,13 +213,13 @@ class CategoryPage(Page):
             'list_article': Page.as_ul_of_links(self.articles, self.path, with_ts=True),
         }
         context.update(CategoryPage.additional_context)
-        super().generate(template, context)
+        super().generate(template, context, subsite_name)
 
 
 class ArticlePage(Page):
-    def __init__(self, path, all_cats, all_cat_paths):
+    def __init__(self, path, all_cats, all_cat_paths, subsite_name):
         super().__init__(path)
-        soup = self.eval()
+        soup = self.eval(subsite_name)
         elm_cats = soup.find(class_='categories')
         if elm_cats is not None:
             cats = elm_cats.find_all('a')
@@ -238,8 +239,10 @@ class ArticlePage(Page):
 class IndexPage(Page):
     additional_context = {}
 
-    def __init__(self, lang_root, lang_template_root):
-        super().__init__(lang_root / 'index.html')
+    def __init__(self, subsite_root):
+        super().__init__(subsite_root / 'index.html')
+
+    def build(self, subsite_template_root, subsite_name):
         all_cats = {}
         all_cat_paths = set()
 
@@ -248,7 +251,7 @@ class IndexPage(Page):
         self.articles = []
         article_dir = self.path.parent / 'articles'
         for article_path in validate_and_collect_page_paths(article_dir, [], []):
-            article = ArticlePage(article_path, all_cats, all_cat_paths)
+            article = ArticlePage(article_path, all_cats, all_cat_paths, subsite_name)
             self.articles.append(article)
         self.articles.sort(key=lambda a: a.title)  # 先にタイトル順ソート
         list_article = Page.as_ul_of_links(self.articles, self.path, with_ts=True)
@@ -260,10 +263,10 @@ class IndexPage(Page):
         print('[INFO] カテゴリページ生成')
         self.all_cats = list(all_cats.values())
         self.all_cats.sort(key=lambda c: c.cat_name)
-        cat_template_path = lang_template_root / 'category_template.html'
+        cat_template_path = subsite_template_root / 'category_template.html'
         cat_template = Template(cat_template_path.read_text(encoding='utf8'))
         for cat in self.all_cats:
-            cat.generate(cat_template)
+            cat.generate(cat_template, subsite_name)
         list_category = Page.as_ul_of_links(self.all_cats, self.path)
 
         # 廃れたカテゴリページがないことの確認
@@ -274,7 +277,7 @@ class IndexPage(Page):
 
         # 目次ページ自身の生成
         print('[INFO] 目次ページ生成')
-        template_path = lang_template_root / 'index_template.html'
+        template_path = subsite_template_root / 'index_template.html'
         template = Template(template_path.read_text(encoding='utf8'))
         context = {
             'n_article': len(self.articles),
@@ -284,7 +287,7 @@ class IndexPage(Page):
             'list_category': list_category,
         }
         context.update(IndexPage.additional_context)
-        self.generate(template, context)
+        self.generate(template, context, subsite_name)
 
     def get_pages(self):
         return [self] + self.articles + self.all_cats
@@ -307,7 +310,6 @@ class Sitemap(File):
 
 @contextmanager
 def index_generation(
-    site_name,  # サイト名 (ページタイトルが「hoge - site_name」になっているかチェックする用)
     site_root,  # サイトのファイル群のルート (相対パスをページ更新日管理とサイトマップとログに利用)
     style_css,  # style.css のパス (便利ツール側リソースを強制的に同期)
     funcs_js,  # funcs.js のパス (便利ツール側リソースを強制的に同期)
@@ -325,8 +327,7 @@ def index_generation(
     # style.css と funcs.js は便利ツール側リソースを強制的に同期
     File(style_css).load_style_css()
     File(funcs_js).load_func_js()
-    # サイト内のすべてのページで利用するパラメータをセット
-    Page.site_name = site_name
+
     Page.load_last_counts(last_counts_path)  # ページ文字数最終更新日をロード
     yield
     Page.dump_last_counts(last_counts_path)  # ページ文字数最終更新日をダンプ
