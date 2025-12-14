@@ -82,6 +82,8 @@ class ArticleHelper:
         if rel_path.endswith('.js'):
             links = self.soup.find_all('script')
             for link in links:
+                if not link.has_attr('src'):
+                    continue
                 if link['src'].startswith(rel_path):
                     link['src'] = f'{rel_path}?v={timestamp}'
 
