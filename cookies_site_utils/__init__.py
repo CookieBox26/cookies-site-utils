@@ -45,11 +45,12 @@ class File:
         if self.path.exists():
             current_text = self.path.read_text(encoding='utf8')
             if current_text == text:
-                print(f'更新なし {self.rel_path}')
+                # print(f'更新なし {self.rel_path}')
                 return
-            print(f'更新あり {self.rel_path}')
+            # print(f'更新あり {self.rel_path}')
         else:
-            print(f'新規作成 {self.rel_path}')
+            # print(f'新規作成 {self.rel_path}')
+            pass
         self.path.write_text(text, newline='\n', encoding='utf8')
 
     def load_style_css(self):
@@ -139,10 +140,12 @@ class Page(File):
         else:
             Page.last_counts[self.rel_path] = {'rel_path': self.rel_path}
 
+        sign = ' '
         if not Page.force_keep_timestamp:
             if count == last_count:  # 文字数が前回と一致していれば前回登録時のタイムスタンプを取る
                 self.timestamp = Page.last_counts[self.rel_path]['timestamp']
             else:  # 文字数が前回と不一致であればファイルタイムスタンプを取る
+                sign = 'U' if (lat_count > 0) else 'A'
                 self.timestamp = self.get_file_timestamp()
                 Page.last_counts[self.rel_path]['timestamp'] = self.timestamp  # タイムスタンプ登録
                 Page.last_counts[self.rel_path]['count'] = count  # 文字数登録
@@ -150,11 +153,17 @@ class Page(File):
             # 前回のタイムスタンプがあれば取りなければファイルタイムスタンプを取る
             self.timestamp = Page.last_counts[self.rel_path].get('timestamp', None)
             if self.timestamp is None:
+                sign = 'A'
                 self.timestamp = self.get_file_timestamp()
                 Page.last_counts[self.rel_path]['timestamp'] = self.timestamp  # タイムスタンプ登録
+            else:
+                count_cur = Page.last_counts[self.rel_path]['count']
+                sign = 'K' if (count != count_cur) else ' ' 
             Page.last_counts[self.rel_path]['count'] = count  # 文字数登録
-
-        print(self.timestamp, self.title, f'({last_count} --> {count})')
+        print(
+            self.timestamp, sign, self.title,
+            ('' if (sign == ' ') else f'({last_count} --> {count})'),
+        )
         return soup
 
     def __init__(self, path):
