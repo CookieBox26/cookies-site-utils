@@ -145,7 +145,7 @@ class Page(File):
             if count == last_count:  # 文字数が前回と一致していれば前回登録時のタイムスタンプを取る
                 self.timestamp = Page.last_counts[self.rel_path]['timestamp']
             else:  # 文字数が前回と不一致であればファイルタイムスタンプを取る
-                sign = 'U' if (lat_count > 0) else 'A'
+                sign = 'U' if (last_count > 0) else 'A'
                 self.timestamp = self.get_file_timestamp()
                 Page.last_counts[self.rel_path]['timestamp'] = self.timestamp  # タイムスタンプ登録
                 Page.last_counts[self.rel_path]['count'] = count  # 文字数登録

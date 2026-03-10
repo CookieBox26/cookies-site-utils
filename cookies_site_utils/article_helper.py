@@ -1,4 +1,4 @@
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Doctype, Tag, Comment
 from pathlib import Path
 import os
 import toml
@@ -21,13 +21,74 @@ class ArticleHelper:
         for child in element.children:
             child.replace_with(replace_to)
 
+    @classmethod
+    def start_tag(cls, node):
+        s = '<' + node.name
+        for k, v in node.attrs.items():
+            if isinstance(v, list):
+                v = ' '.join(v)
+            s += f' {k}="{v}"'
+        return s + '>'
+
+    @classmethod
+    def target(cls, child):
+        if child.name == 'div' and 'container' in child.get('class', []):
+            return True
+        if child.name == 'main' and 'main' in child.get('class', []):
+            return True
+        if child.name == 'div' and 'item' in child.get('class', []):
+            return True
+        return False
+
+    @classmethod
+    def decode(cls, node):
+        decoded = ArticleHelper.start_tag(node)
+        for child in node.children:
+            if isinstance(child, Tag):
+                if ArticleHelper.target(child):
+                    decoded += ArticleHelper.decode(child)
+                else:
+                    if (child.name in ['h2', 'h3']) and (not decoded.endswith('\n\n')):
+                        decoded += '\n'
+                    decoded += child.decode()
+            elif isinstance(child, Comment):
+                decoded += f'<!--{child}-->'
+            else:
+                decoded += str(child)
+        if node.name == 'div' and 'item' in node.get('class', []):
+            decoded += '\n'
+        decoded += f'</{node.name}>'
+        return decoded
+
+    def decode_soup(self):
+        decoded = ''
+        for node in self.soup.contents:
+            if isinstance(node, Doctype):
+                decoded += f'<!DOCTYPE {node}>\n\n'
+            elif node.name == 'html':
+                decoded += '<html>\n'
+                decoded += self.soup.head.decode() + '\n'
+                decoded += ArticleHelper.decode(self.soup.body) + '\n'
+                decoded += '</html>\n'
+        return decoded
+
     def generate(self):
-        self.path.write_text(str(self.soup), encoding='utf8', newline='\n')
+        if self.soup is None:
+            print('スープがないので何もしません')
+        else:
+            self.path.write_text(self.decode_soup(), encoding='utf8', newline='\n')
         print(self.path.as_posix())
 
     def __init__(self, path):
         self.path = path
         self.soup = None
+
+    def set_soup(self):
+        if self.soup is None:
+            self.soup = BeautifulSoup(self.path.read_text(encoding='utf8'), 'html.parser')
+
+    def soupify(self):
+        self.set_soup()
 
     def copy_from(self, base_path, new_title, categories):
         if self.path.exists():
@@ -65,10 +126,8 @@ class ArticleHelper:
              else:
                  cleared_last = False
 
-    def update_query_timestamp(self, resource, timestamp):
-        if self.soup is None:
-            self.soup = BeautifulSoup(self.path.read_text(encoding='utf8'), 'html.parser')
-
+    def update_timestamp(self, resource, timestamp):
+        self.set_soup()
         parent = self.path.resolve().parent
         if self.path in ArticleHelper.templates:
             parent = ArticleHelper.templates[self.path]
@@ -88,8 +147,7 @@ class ArticleHelper:
                     link['src'] = f'{rel_path}?v={timestamp}'
 
     def add_reference(self, references):
-        if self.soup is None:
-            self.soup = BeautifulSoup(self.path.read_text(encoding='utf8'), 'html.parser')
+        self.set_soup()
         today = datetime.datetime.now().strftime('%Y年%#m月%#d日')
         ol_tag = self.soup.select_one('ol.ref')
         for ref in references:
@@ -102,21 +160,27 @@ class ArticleHelper:
 
     @classmethod
     def run_jobs(cls, path, jobs):
+        processed = False
         ah = cls(path)
         for job in jobs:
+            if job.get('skip', False):
+                continue
             print('-', job['job_type'])
+            if job['job_type'] == 'SOUPIFY':
+                ah.soupify()
             if job['job_type'] == 'COPY_FROM':
                 ah.copy_from(
                     base_path=job['base_path'],
                     new_title=job['new_title'],
                     categories=job['categories'],
                 )
-            if job['job_type'] == 'UPDATE_QUERY_TIMESTAMP':
-                ah.update_query_timestamp(job['resource'], job['timestamp'])
+            if job['job_type'] == 'UPDATE_TIMESTAMP':
+                ah.update_timestamp(job['resource'], job['timestamp'])
             if job['job_type'] == 'ADD_REFERENCE':
                 ah.add_reference(job['references'])
+            processed = True
         ah.generate()
-        return ah
+        return processed, ah
 
     @classmethod
     def run(cls, conf_path):
@@ -128,6 +192,7 @@ class ArticleHelper:
             for template, parent in conf['templates'].items():
                 ArticleHelper.templates[Path(template)] = Path(parent).resolve()
 
+        processed = False
         ah = None
         for job_group in conf['job_groups']:
             if job_group.get('skip', False):
@@ -136,14 +201,15 @@ class ArticleHelper:
                 path = Path(path_raw)
                 if '*' in path.name:
                     for path in path.parent.glob(path.name):
-                        ah = cls.run_jobs(path, job_group['jobs'])
+                        processed, ah = cls.run_jobs(path, job_group['jobs'])
                 else:
-                    ah = cls.run_jobs(path, job_group['jobs'])
+                    processed, ah = cls.run_jobs(path, job_group['jobs'])
 
-        if 'text_editor' in conf:
-            subprocess.Popen([conf['text_editor'], ah.path.resolve()])
-        if 'web_browser' in conf:
-            subprocess.Popen([conf['web_browser'], ah.path.resolve()])
+        if processed:
+            if 'text_editor' in conf:
+                subprocess.Popen([conf['text_editor'], ah.path.resolve()])
+            if 'web_browser' in conf:
+                subprocess.Popen([conf['web_browser'], ah.path.resolve()])
 
 
 def main():
