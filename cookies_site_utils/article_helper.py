@@ -48,14 +48,21 @@ class ArticleHelper:
                 if ArticleHelper.target(child):
                     decoded += ArticleHelper.decode(child)
                 else:
-                    if (child.name in ['h2', 'h3']) and (not decoded.endswith('\n\n')):
+                    if (
+                        (child.name in ['h2', 'h3'])
+                        and (not decoded.endswith('\n\n'))
+                    ):
                         decoded += '\n'
                     decoded += child.decode()
             elif isinstance(child, Comment):
                 decoded += f'<!--{child}-->'
             else:
                 decoded += str(child)
-        if node.name == 'div' and 'item' in node.get('class', []):
+        if (
+            node.name == 'div'
+            and 'item' in node.get('class', [])
+            and (not decoded.endswith('\n\n'))
+        ):
             decoded += '\n'
         decoded += f'</{node.name}>'
         return decoded
@@ -66,11 +73,11 @@ class ArticleHelper:
             if isinstance(node, Doctype):
                 decoded += f'<!DOCTYPE {node}>\n\n'
             elif node.name == 'html':
-                decoded += '<html>\n'
+                decoded += ArticleHelper.start_tag(node) + '\n'
                 decoded += self.soup.head.decode() + '\n'
                 decoded += ArticleHelper.decode(self.soup.body) + '\n'
-                decoded += '</html>\n'
-        return decoded
+                decoded += f'</{node.name}>'
+        return decoded + '\n'
 
     def generate(self):
         if self.soup is None:
