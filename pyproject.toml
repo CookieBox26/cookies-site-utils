@@ -15,5 +15,19 @@ dependencies = [
     "toml",
 ]
 
+[project.optional-dependencies]
+test = [
+  "pytest",
+  "ruff",
+]
+
 [project.scripts]
 ah = "cookies_site_utils.article_helper:main"
+
+[tool.ruff.lint]
+select = ["F401"]
+
+[tool.pytest.ini_options]
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "[%(levelname)s] %(message)s"
