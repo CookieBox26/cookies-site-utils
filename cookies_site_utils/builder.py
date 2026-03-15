@@ -230,7 +230,7 @@ class ArticlePage(Page):
             cats = elm_cats.find_all('a')
             for cat in cats:
                 cat_name = cat.get_text()
-                cat_path = (path.parent / Path(cat['href'])).resolve()
+                cat_path = (self.path.parent / Path(cat['href'])).resolve()
                 if cat_name not in all_cats:
                     if cat_path in all_cat_paths:
                         self.raise_error(f'カテゴリ名のゆれ {cat_name}')
@@ -257,7 +257,7 @@ class IndexPage(Page):
             articles.append(article)
         return articles, list(all_cats.values()), all_cat_paths
 
-    def generate_categories(self):
+    def generate_categories(self, cat_template_path, subsite_name, all_cat_paths):
         logger.info('カテゴリページ生成')
         cat_template = Template(cat_template_path.read_text(encoding='utf8'))
         for cat in self.all_cats:
@@ -299,9 +299,9 @@ class IndexPage(Page):
 
         # カテゴリページ生成
         self.all_cats.sort(key=lambda c: c.cat_name)
-        list_category = Page.as_ul_of_links(self.all_cats, self.path)
         if cat_template_path.is_file():
-            self.generate_categories()
+            self.generate_categories(cat_template_path, subsite_name, all_cat_paths)
+        list_category = Page.as_ul_of_links(self.all_cats, self.path)
 
         # 目次ページ自身の生成
         logger.info('目次ページ生成')
