@@ -24,7 +24,8 @@ test = [
 ]
 
 [project.scripts]
-csu = "cookies_site_utils.__main__:main"
+"csu" = "cookies_site_utils.__main__:main"
+"csu-qi" = "cookies_site_utils.qiita_items:main"
 
 [tool.ruff.lint]
 select = ["F401"]
