@@ -3,6 +3,7 @@ from pathlib import Path
 import subprocess
 import argparse
 import re
+import logging
 
 
 def _get_remote_head_hash():
