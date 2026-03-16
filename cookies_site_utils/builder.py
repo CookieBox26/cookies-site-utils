@@ -107,6 +107,8 @@ class Page(File):
             else:
                 if page_title != f'{self.title} - {self.subsite_name}':
                     self.raise_error('title タグが h1 タグ + サブサイト名でない')
+        if not self.strict_check:
+            return
         for tag in soup.find_all(True):
             if tag.has_attr('style'):
                 self.raise_error('インラインスタイルがある')
@@ -127,9 +129,10 @@ class Page(File):
         if return_soup:
             return soup
 
-    def __init__(self, path, subsite_name=None):
+    def __init__(self, path, subsite_name=None, strict_check=True):
         super().__init__(path)
         self.subsite_name = subsite_name
+        self.strict_check = strict_check
         self.is_index = (type(self).__name__ == 'IndexPage')
         self.counter = PageCharCounter()
 

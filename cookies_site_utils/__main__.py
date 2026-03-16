@@ -48,16 +48,18 @@ def _sync_hash():
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('flag', choices=['s', 'a'])
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('-s', '--sync_hash', action='store_true')
+    group.add_argument('-a', '--article_helper', action='store_true')
     parser.add_argument(
-        'article_helper_conf_path',
-        nargs='?', type=str, default='.helper.toml',
+        '-c', '--article_helper_conf_path',
+        type=str, default='.helper.toml',
     )
     args = parser.parse_args()
 
-    if args.flag == 's':
+    if args.sync_hash:
         _sync_hash()
-    elif args.flag == 'a':
+    if args.article_helper:
         ArticleHelper.run(args.article_helper_conf_path)
 
 

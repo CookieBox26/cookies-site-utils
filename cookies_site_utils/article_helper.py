@@ -19,17 +19,19 @@ class ArticlePageEx(ArticlePage):
         su.clear_item(soup)
         return soup
 
-    def __init__(self, path, subsite_name=None):
-        super().__init__(path, subsite_name)
+    def __init__(self, path, subsite_name=None, strict_check=True):
+        super().__init__(path, subsite_name, strict_check)
 
 
 class ArticleHelper:
     subsite_name = None
     templates = {}
+    relaxed_list = []
 
     @classmethod
     def run_job_group(cls, path, jobs):
-        ape = ArticlePageEx(path, cls.subsite_name)
+        relaxed_check = (path in cls.relaxed_list)
+        ape = ArticlePageEx(path, cls.subsite_name, not relaxed_check)
         logger.info(ape.rel_path)
         soup = None
 
@@ -77,6 +79,8 @@ class ArticleHelper:
         if 'templates' in conf:
             for template, parent in conf['templates'].items():
                 cls.templates[Path(template)] = Path(parent).resolve()
+        if 'relaxed_list' in conf:
+            cls.relaxed_list = [Path(p) for p in conf['relaxed_list']]
 
         soup = None
         for job_group in conf['job_groups']:
