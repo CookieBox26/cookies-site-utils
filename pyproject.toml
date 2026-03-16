@@ -7,12 +7,14 @@ name = "cookies_site_utils"
 version = "0.0.1"
 readme = "README.md"
 requires-python = ">=3.11"
-authors = [{name="CookieBox26", email="cookie-box@cookie-box.info"}]
+authors = [
+  { name = "CookieBox26", email = "cookie-box@cookie-box.info" },
+]
 dependencies = [
-    "beautifulsoup4",
-    "jinja2",
-    "shirotsubaki",
-    "toml",
+  "beautifulsoup4",
+  "jinja2",
+  "shirotsubaki",
+  "toml",
 ]
 
 [project.optional-dependencies]
@@ -22,7 +24,7 @@ test = [
 ]
 
 [project.scripts]
-ah = "cookies_site_utils.article_helper:main"
+csu = "cookies_site_utils.__main__:main"
 
 [tool.ruff.lint]
 select = ["F401"]

@@ -1,206 +1,84 @@
-from bs4 import BeautifulSoup, Doctype, Tag, Comment
+from cookies_site_utils.builder import ArticlePage
+import cookies_site_utils.soup_util as su
 from pathlib import Path
-import os
 import toml
-import datetime
 import subprocess
-import argparse
+import logging
+logger = logging.getLogger(__name__)
+
+
+class ArticlePageEx(ArticlePage):
+    def generate_from_soup(self, soup):
+        self.write_text(su.decode_soup(soup))
+        self.eval()
+
+    def copy_soup(self, new_title, new_subsite_name_=None):
+        soup, text = self.parse()
+        new_subsite_name = new_subsite_name_ or self.subsite_name
+        su.set_title(soup, new_title, new_subsite_name)
+        su.clear_item(soup)
+        return soup
+
+    def __init__(self, path, subsite_name=None):
+        super().__init__(path, subsite_name)
 
 
 class ArticleHelper:
-    site_name = None
+    subsite_name = None
     templates = {}
 
     @classmethod
-    def eq(cls, element, element_class_selector):
-        tag, clazz = element_class_selector.split('.')
-        return element.name == tag and clazz in element.get('class', [])
+    def run_job_group(cls, path, jobs):
+        ape = ArticlePageEx(path, cls.subsite_name)
+        logger.info(ape.rel_path)
+        soup = None
 
-    @classmethod
-    def _clear_children(cls, element, replace_to=''):
-        for child in element.children:
-            child.replace_with(replace_to)
-
-    @classmethod
-    def start_tag(cls, node):
-        s = '<' + node.name
-        for k, v in node.attrs.items():
-            if isinstance(v, list):
-                v = ' '.join(v)
-            s += f' {k}="{v}"'
-        return s + '>'
-
-    @classmethod
-    def target(cls, child):
-        if child.name == 'div' and 'container' in child.get('class', []):
-            return True
-        if child.name == 'main' and 'main' in child.get('class', []):
-            return True
-        if child.name == 'div' and 'item' in child.get('class', []):
-            return True
-        return False
-
-    @classmethod
-    def decode(cls, node):
-        decoded = ArticleHelper.start_tag(node)
-        for child in node.children:
-            if isinstance(child, Tag):
-                if ArticleHelper.target(child):
-                    decoded += ArticleHelper.decode(child)
-                else:
-                    if (
-                        (child.name in ['h2', 'h3'])
-                        and (not decoded.endswith('\n\n'))
-                    ):
-                        decoded += '\n'
-                    decoded += child.decode()
-            elif isinstance(child, Comment):
-                decoded += f'<!--{child}-->'
-            else:
-                decoded += str(child)
-        if (
-            node.name == 'div'
-            and 'item' in node.get('class', [])
-            and (not decoded.endswith('\n\n'))
-        ):
-            decoded += '\n'
-        decoded += f'</{node.name}>'
-        return decoded
-
-    def decode_soup(self):
-        decoded = ''
-        for node in self.soup.contents:
-            if isinstance(node, Doctype):
-                decoded += f'<!DOCTYPE {node}>\n\n'
-            elif node.name == 'html':
-                decoded += ArticleHelper.start_tag(node) + '\n'
-                decoded += self.soup.head.decode() + '\n'
-                decoded += ArticleHelper.decode(self.soup.body) + '\n'
-                decoded += f'</{node.name}>'
-        return decoded + '\n'
-
-    def generate(self):
-        if self.soup is None:
-            print('スープがないので何もしません')
-        else:
-            self.path.write_text(self.decode_soup(), encoding='utf8', newline='\n')
-        print(self.path.as_posix())
-
-    def __init__(self, path):
-        self.path = path
-        self.soup = None
-
-    def set_soup(self):
-        if self.soup is None:
-            self.soup = BeautifulSoup(self.path.read_text(encoding='utf8'), 'html.parser')
-
-    def soupify(self):
-        self.set_soup()
-
-    def copy_from(self, base_path, new_title, categories):
-        if self.path.exists():
-            raise ValueError(f'{self.path} exists.')
-        self.soup = BeautifulSoup(Path(base_path).read_text(encoding='utf8'), 'html.parser')
-        self.soup.title.string = f'{new_title} - {ArticleHelper.site_name}'
-        self.soup.find('h1').string = new_title
-        item = self.soup.select_one('div.item')
-        cleared_last = False
-        for child in item.children:
-             clear = False
-             if child.name == 'h1':
-                 pass
-             elif ArticleHelper.eq(child, 'div.categories'):
-                 ArticleHelper._clear_children(child)
-                 for i_cat, (cat_path, cat_name) in enumerate(categories.items()):
-                     if i_cat != 0:
-                         child.append(', ')
-                     a_tag = self.soup.new_tag('a', href=f'../categories/{cat_path}.html')
-                     a_tag.string = cat_name
-                     child.append(a_tag)
-             elif ArticleHelper.eq(child, 'div.summary'):
-                 ul_tag = child.select_one('ul')
-                 ArticleHelper._clear_children(ul_tag)
-                 ul_tag.extend(['\n', self.soup.new_tag('li'), '\n'])
-             elif child.name == 'h2' and child.string == '参考文献':
-                 pass
-             elif ArticleHelper.eq(child, 'ol.ref'):
-                 ArticleHelper._clear_children(child)
-             else:
-                 clear = True
-             if clear:
-                 child.replace_with('' if cleared_last else '\n')
-                 cleared_last = True
-             else:
-                 cleared_last = False
-
-    def update_timestamp(self, resource, timestamp):
-        self.set_soup()
-        parent = self.path.resolve().parent
-        if self.path in ArticleHelper.templates:
-            parent = ArticleHelper.templates[self.path]
-        rel_path = Path(os.path.relpath(Path(resource).resolve(), parent)).as_posix()
-
-        if rel_path.endswith('.css'):
-            links = self.soup.find_all('link', {'rel': 'stylesheet'})
-            for link in links:
-                if link['href'].startswith(rel_path):
-                    link['href'] = f'{rel_path}?v={timestamp}'
-        if rel_path.endswith('.js'):
-            links = self.soup.find_all('script')
-            for link in links:
-                if not link.has_attr('src'):
-                    continue
-                if link['src'].startswith(rel_path):
-                    link['src'] = f'{rel_path}?v={timestamp}'
-
-    def add_reference(self, references):
-        self.set_soup()
-        today = datetime.datetime.now().strftime('%Y年%#m月%#d日')
-        ol_tag = self.soup.select_one('ol.ref')
-        for ref in references:
-            li_tag = self.soup.new_tag('li')
-            a_tag = self.soup.new_tag('a', href=ref['url'])
-            a_tag['class'] = 'asis'
-            li_tag.append(BeautifulSoup(ref['title'], 'html.parser'))
-            li_tag.extend([', ', a_tag, f', {today}参照.'])
-            ol_tag.append(li_tag)
-
-    @classmethod
-    def run_jobs(cls, path, jobs):
-        processed = False
-        ah = cls(path)
         for job in jobs:
             if job.get('skip', False):
                 continue
-            print('-', job['job_type'])
+            logger.info('- ' + job['job_type'])
+
             if job['job_type'] == 'SOUPIFY':
-                ah.soupify()
+                if soup is None:
+                    soup, _ = ape.parse()
+
             if job['job_type'] == 'COPY_FROM':
-                ah.copy_from(
-                    base_path=job['base_path'],
-                    new_title=job['new_title'],
-                    categories=job['categories'],
-                )
+                if ape.path.exists():
+                    raise ValueError(f'{ape.path} exists.')
+                ape_base = ArticlePageEx(job['base_path'], cls.subsite_name)
+                soup = ape_base.copy_soup(job['new_title'])
+                su.add_categories(soup, job['categories'])
+
             if job['job_type'] == 'UPDATE_TIMESTAMP':
-                ah.update_timestamp(job['resource'], job['timestamp'])
-            if job['job_type'] == 'ADD_REFERENCE':
-                ah.add_reference(job['references'])
-            processed = True
-        ah.generate()
-        return processed, ah
+                if soup is None:
+                    soup, _ = ape.parse()
+                parent = ape.path.resolve().parent
+                if ape.path in ArticleHelper.templates:
+                    parent = ArticleHelper.templates[ape.path]
+                su.update_timestamp(
+                    soup, parent, job['resource'], job['timestamp'],
+                )
+
+            if job['job_type'] == 'ADD_REFERENCES':
+                if soup is None:
+                    soup, _ = ape.parse()
+                su.add_references(soup, job['references'])
+
+        if soup is not None:
+            ape.generate_from_soup(soup)
+
+        return ape, soup
 
     @classmethod
     def run(cls, conf_path):
-        with open(conf_path, encoding='utf8') as f:
-            conf = toml.load(f)
-        if 'site_name' in conf:
-            ArticleHelper.site_name = conf['site_name']
+        conf = toml.loads(Path(conf_path).read_text(encoding='utf8'))
+        if 'subsite_name' in conf:
+            cls.subsite_name = conf['subsite_name']
         if 'templates' in conf:
             for template, parent in conf['templates'].items():
-                ArticleHelper.templates[Path(template)] = Path(parent).resolve()
+                cls.templates[Path(template)] = Path(parent).resolve()
 
-        processed = False
-        ah = None
+        soup = None
         for job_group in conf['job_groups']:
             if job_group.get('skip', False):
                 continue
@@ -208,23 +86,12 @@ class ArticleHelper:
                 path = Path(path_raw)
                 if '*' in path.name:
                     for path in path.parent.glob(path.name):
-                        processed, ah = cls.run_jobs(path, job_group['jobs'])
+                        ape, soup = cls.run_job_group(path, job_group['jobs'])
                 else:
-                    processed, ah = cls.run_jobs(path, job_group['jobs'])
+                    ape, soup = cls.run_job_group(path, job_group['jobs'])
 
-        if processed:
+        if soup is not None:
             if 'text_editor' in conf:
-                subprocess.Popen([conf['text_editor'], ah.path.resolve()])
+                subprocess.Popen([conf['text_editor'], ape.path.resolve()])
             if 'web_browser' in conf:
-                subprocess.Popen([conf['web_browser'], ah.path.resolve()])
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('conf_path', type=str, nargs='?', default='.helper.toml')
-    args = parser.parse_args()
-    ArticleHelper.run(args.conf_path)
-
-
-if __name__ == '__main__':
-    main()
+                subprocess.Popen([conf['web_browser'], ape.path.resolve()])

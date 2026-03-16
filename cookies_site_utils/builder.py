@@ -1,5 +1,6 @@
 from cookies_site_utils.core import File
 from pathlib import Path
+import fnmatch
 import os
 import re
 from bs4 import BeautifulSoup
@@ -8,41 +9,8 @@ from datetime import datetime
 from jinja2 import Template
 import toml
 from contextlib import contextmanager
-import importlib.resources
 import logging
 logger = logging.getLogger(__name__)
-
-
-def validate_and_collect_page_paths(
-    path,
-    files_allowed,
-    subdirs_allowed,
-    collect_page=True,
-):
-    """
-    path 以下に許可されていないファイルやサブディレクトリがないか
-    確認しながら .html ファイルを収集します
-    逆に allowed なファイルやサブディレクトリの存在は確認しません
-    """
-    page_paths = []
-    for child in path.iterdir():
-        if child.is_dir() and child.name not in subdirs_allowed:
-            raise ValueError(f'不要なサブディレクトリがある {child}')
-        if child.is_file() and child.name not in files_allowed:
-            if collect_page and child.suffix.lower() == '.html':
-                page_paths.append(child)
-            else:
-                raise ValueError(f'不要なファイルがある {child}')
-    return page_paths
-
-
-def validate(path, files_allowed, subdirs_allowed):
-    validate_and_collect_page_paths(
-        path,
-        files_allowed,
-        subdirs_allowed,
-        collect_page=False,
-    )
 
 
 class PageCharCounter:
@@ -77,6 +45,9 @@ class Page(File):
         if not last_counts_path:
             logger.warning('ページ最終更新日管理ファイルが指定されていません')
             return
+        if not last_counts_path.is_file():
+            cls.last_counts = {}
+            return
         with open(last_counts_path, encoding='utf8') as f:
             pages = toml.load(f)['pages']
             cls.last_counts = {page['rel_path']: page for page in pages}
@@ -91,49 +62,19 @@ class Page(File):
     def get_file_timestamp(self):
         return datetime.fromtimestamp(self.path.stat().st_mtime).strftime('%Y-%m-%d')
 
-    def eval(self, subsite_name=None):
-        text = self.path.read_text(encoding='utf8')
-        soup = BeautifulSoup(text, 'html.parser')
-        self.title = soup.find('h1').get_text()
-
-        if subsite_name is not None:
-            page_title = soup.title.get_text()
-            if self.is_index:
-                if page_title != f'{subsite_name}':
-                    self.raise_error('title タグがサブサイト名でない')
-            else:
-                if page_title != f'{self.title} - {subsite_name}':
-                    self.raise_error('title タグが h1 タグ + サブサイト名でない')
-
-        for tag in soup.find_all(True):
-            if tag.has_attr('style'):
-                self.raise_error('インラインスタイルがある')
-
-        for a in soup.find_all('a'):
-            if a.has_attr('target'):
-                self.raise_error('a タグに target 属性がある')
-
-        links = soup.find_all('link', {'rel': 'stylesheet'})
-        for link in links:
-            css = link['href']
-            if css.startswith('http'):
-                continue
-            # print(css)
-
-        if not Page.last_counts:
+    def set_timestamp(self, count=-1):
+        if Page.last_counts is None:
             self.timestamp = self.get_file_timestamp()
-            return soup
+            return
 
-        count = self.counter(text)
         last_count = 0
         if self.rel_path in Page.last_counts:
             last_count = Page.last_counts[self.rel_path]['count']
         else:
             Page.last_counts[self.rel_path] = {'rel_path': self.rel_path}
-
         sign = ' '
         if not Page.force_keep_timestamp:
-            if count == last_count:  # 文字数が前回と一致していれば前回タイムスタンプ
+            if count == last_count:  # 文字数が前回と一致であれば前回タイムスタンプ
                 self.timestamp = Page.last_counts[self.rel_path]['timestamp']
             else:  # 文字数が前回と不一致であればファイルタイムスタンプ
                 sign = 'U' if (last_count > 0) else 'A'
@@ -155,17 +96,47 @@ class Page(File):
             self.timestamp, sign, self.title,
             ('' if (sign == ' ') else f'({last_count} --> {count})'),
         ]))
-        return soup
 
-    def __init__(self, path):
+    def eval_soup(self, soup):
+        self.title = soup.find('h1').get_text()
+        if self.subsite_name is not None:
+            page_title = soup.title.get_text()
+            if self.is_index:
+                if page_title != f'{self.subsite_name}':
+                    self.raise_error('title タグがサブサイト名でない')
+            else:
+                if page_title != f'{self.title} - {self.subsite_name}':
+                    self.raise_error('title タグが h1 タグ + サブサイト名でない')
+        for tag in soup.find_all(True):
+            if tag.has_attr('style'):
+                self.raise_error('インラインスタイルがある')
+        for a in soup.find_all('a'):
+            if a.has_attr('target'):
+                self.raise_error('a タグに target 属性がある')
+
+    def parse(self):
+        text = self.path.read_text(encoding='utf8')
+        soup = BeautifulSoup(text, 'html.parser')
+        return soup, text
+
+    def eval(self, return_soup=False):
+        soup, text = self.parse()
+        self.eval_soup(soup)
+        count = self.counter(text)
+        self.set_timestamp(count=count)
+        if return_soup:
+            return soup
+
+    def __init__(self, path, subsite_name=None):
         super().__init__(path)
+        self.subsite_name = subsite_name
         self.is_index = (type(self).__name__ == 'IndexPage')
         self.counter = PageCharCounter()
 
-    def generate_from_template(self, template, context, subsite_name):
+    def generate_from_template(self, template, context):
         rendered = template.render(context) + '\n'
         self.write_text(rendered)
-        self.eval(subsite_name)
+        self.eval()
 
     def as_anchor(self, source_path, with_ts=False):
         rel_path_from_source = os.path.relpath(self.path, source_path.parent)
@@ -202,12 +173,12 @@ class Page(File):
 class CategoryPage(Page):
     additional_context = {}
 
-    def __init__(self, cat_name, path):
-        super().__init__(path)
+    def __init__(self, cat_name, path, subsite_name):
+        super().__init__(path, subsite_name)
         self.cat_name = cat_name
         self.articles = []
 
-    def generate_from_template(self, template, subsite_name):
+    def generate_from_template(self, template):
         self.articles.sort(key=lambda a: a.title)
         context = {
             'category_name': self.cat_name,
@@ -219,12 +190,11 @@ class CategoryPage(Page):
             ),
         }
         context.update(CategoryPage.additional_context)
-        super().generate_from_template(template, context, subsite_name)
+        super().generate_from_template(template, context)
 
 
 class ArticlePage(Page):
-    def collect_categories(self, all_cats, all_cat_paths, subsite_name=None):
-        soup = self.eval(subsite_name)
+    def collect_categories(self, soup, all_cats, all_cat_paths):
         elm_cats = soup.find(class_='categories')
         if elm_cats is not None:
             cats = elm_cats.find_all('a')
@@ -234,7 +204,9 @@ class ArticlePage(Page):
                 if cat_name not in all_cats:
                     if cat_path in all_cat_paths:
                         self.raise_error(f'カテゴリ名のゆれ {cat_name}')
-                    all_cats[cat_name] = CategoryPage(cat_name, cat_path)
+                    all_cats[cat_name] = CategoryPage(
+                        cat_name, cat_path, self.subsite_name,
+                    )
                     all_cat_paths.add(cat_path)
                 elif cat_path != all_cats[cat_name].path:
                     self.raise_error(f'カテゴリページパスのゆれ {cat_path}')
@@ -244,28 +216,29 @@ class ArticlePage(Page):
 class IndexPage(Page):
     additional_context = {}
 
-    def collect_articles(self, subsite_name):
+    def collect_articles(self):
         # 記事ページ収集
         logger.info('記事ページ収集')
         articles = []
         all_cats = {}
         all_cat_paths = set()
         article_dir = self.path.parent / 'articles'
-        for article_path in validate_and_collect_page_paths(article_dir, [], []):
-            article = ArticlePage(article_path)
-            article.collect_categories(all_cats, all_cat_paths, subsite_name)
+        for article_path in Path(article_dir).glob('*.html'):
+            article = ArticlePage(article_path, self.subsite_name)
+            soup = article.eval(return_soup=True)
+            article.collect_categories(soup, all_cats, all_cat_paths)
             articles.append(article)
         return articles, list(all_cats.values()), all_cat_paths
 
-    def generate_categories(self, cat_template_path, subsite_name, all_cat_paths):
+    def generate_categories(self, cat_template_path, all_cat_paths):
         logger.info('カテゴリページ生成')
         cat_template = Template(cat_template_path.read_text(encoding='utf8'))
         for cat in self.all_cats:
-            cat.generate_from_template(cat_template, subsite_name)
+            cat.generate_from_template(cat_template)
 
         # 廃れたカテゴリページがないことの確認
         cat_dir = self.path.parent / 'categories'
-        for cat_path in validate_and_collect_page_paths(cat_dir, [], []):
+        for cat_path in Path(cat_dir).glob('*.html'):
             if cat_path not in all_cat_paths:
                 raise ValueError(f'廃れたカテゴリページ {cat_path}')
 
@@ -280,9 +253,8 @@ class IndexPage(Page):
         if not index_template_path.is_file():
             raise ValueError(f'テンプレートがありません {index_template_path}')
 
-        super().__init__(subsite_root / 'index.html')
-        self.articles, self.all_cats, all_cat_paths = \
-            self.collect_articles(subsite_name)
+        super().__init__(subsite_root / 'index.html', subsite_name)
+        self.articles, self.all_cats, all_cat_paths = self.collect_articles()
 
         # 「記事一覧」 (タイトル順ソート)
         self.articles.sort(key=lambda a: a.title)
@@ -300,7 +272,8 @@ class IndexPage(Page):
         # カテゴリページ生成
         self.all_cats.sort(key=lambda c: c.cat_name)
         if cat_template_path.is_file():
-            self.generate_categories(cat_template_path, subsite_name, all_cat_paths)
+            self.generate_categories(cat_template_path, all_cat_paths)
+        print(self.all_cats[0].path)
         list_category = Page.as_ul_of_links(self.all_cats, self.path)
 
         # 目次ページ自身の生成
@@ -314,7 +287,7 @@ class IndexPage(Page):
             'list_category': list_category,
         }
         context.update(IndexPage.additional_context)
-        self.generate_from_template(template, context, subsite_name)
+        self.generate_from_template(template, context)
 
     def get_pages(self):
         return [self] + self.articles + self.all_cats
@@ -335,31 +308,33 @@ class Sitemap(File):
         self.write_text('\n'.join(lines) + '\n')
 
 
+def find_disallowed(path, allowlist, raise_error=True):
+    result = []
+    for p in path.rglob('*'):
+        if not p.is_file():
+            continue
+        rel = p.relative_to(path).as_posix()
+        ok = any(fnmatch.fnmatch(rel, pat) for pat in allowlist)
+        if not ok:
+            result.append(rel)
+    if result and raise_error:
+        raise ValueError(f'許可されていないファイルがあります {result}')
+    return result
+
+
 @contextmanager
 def build_index(
     site_root,  # サイトファイル群ルート (ページ更新日とサイトマップの相対パス用)
-    style_css='',  # style.css のパス (指定した場合便利ツール側 style.css を同期)
-    funcs_js='',  # funcs.js のパス (指定した場合便利ツール側 funcs.js を同期)
     last_counts_path='',  # ページ文字数最終更新日管理ファイルのパス
     domain='',  # ドメイン https://hoge.com/ (サイトマップ用)
-    force_keep_timestamp = False,  # 強制的にタイムスタンプを保つ (メンテナンス用)
+    force_keep_timestamp = False,  # タイムスタンプを保つ (メンテナンス用)
 ):
     """
-    サイトのインデックスページとサイトマップを生成するためのコンテクストを与えます
+    サイトのインデックスとサイトマップを生成するためのコンテクストを与えます
     """
     File.site_root = site_root
     File.domain = domain
     Page.force_keep_timestamp = force_keep_timestamp
-
-    # 便利ツール側 style.css と funcs.js を同期
-    resource_path = importlib.resources.files('cookies_site_utils') / 'resources'
-    if style_css:
-        src = (resource_path / 'style.css').read_text(encoding='utf-8')
-        File(style_css).write_text(src)
-    if funcs_js:
-        src = (resource_path / 'funcs.js').read_text(encoding='utf-8')
-        File(funcs_js).write_text(src)
-
-    Page.load_last_counts(last_counts_path)  # ページ文字数最終更新日をロード
+    Page.load_last_counts(last_counts_path)  # ページ更新日をロード
     yield
-    Page.dump_last_counts(last_counts_path)  # ページ文字数最終更新日をダンプ
+    Page.dump_last_counts(last_counts_path)  # ページ更新日をダンプ

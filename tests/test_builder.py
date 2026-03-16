@@ -1,11 +1,8 @@
-from cookies_site_utils.builder import build_index, IndexPage, validate
-from pathlib import Path
-# 以下は実際には pytest では効かないので pyproject.toml で指定している
-import logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(levelname)s] %(message)s',
+from cookies_site_utils.builder import (
+    build_index, IndexPage, find_disallowed,
+    ArticlePage,
 )
+from pathlib import Path
 
 
 def test_build_index():
@@ -22,4 +19,19 @@ def test_build_index():
             subsite_template_root,
             subsite_name,
         )
-        validate(site_root, ['index.html'], ['articles'])
+
+    find_disallowed(site_root, allowlist=[
+        'index.html',
+        'categories/*.html',
+        'articles/*.html',
+    ])
+
+
+def test_article_page():
+    article = ArticlePage('tests/docs/articles/fuga.html', 'hoge')
+    all_cats = {}
+    all_cat_paths = set()
+    soup = article.eval(return_soup=True)
+    article.collect_categories(soup, all_cats, all_cat_paths)
+    assert 'ふがふが' in all_cats
+    assert all_cats['ふがふが'].cat_name == 'ふがふが'
