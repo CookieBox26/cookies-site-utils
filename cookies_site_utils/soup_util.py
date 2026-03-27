@@ -109,6 +109,9 @@ def set_title(soup, title, subsite_name):
 
 def add_references(soup, references):
     item = soup.find('div', class_='item')
+    dl_tag = item.find('dl', class_='ref')
+    if dl_tag is not None:
+        raise ValueError('There is a dl.ref')
     ol_tag = item.find('ol', class_='ref')
     if ol_tag is None:
         h2_tag = item.find('h2', string='参考文献')
@@ -116,17 +119,47 @@ def add_references(soup, references):
             h2_tag = soup.new_tag('h2', string='参考文献')
             item.append(h2_tag)
             item.append('\n')
-        ol_tag = soup.new_tag('ol', attrs={'class': 'ref'})
+        ol_tag = soup.new_tag('ol', attrs={'class': 'ref small'})
         item.append(ol_tag)
     today = datetime.datetime.now().strftime('%Y年%#m月%#d日')
     for ref in references:
         li_tag = soup.new_tag('li')
-        a_tag = soup.new_tag('a', href=ref['url'])
-        a_tag['class'] = 'asis'
         li_tag.append(BeautifulSoup(ref['title'], 'html.parser'))
-        li_tag.extend([', ', a_tag, f', {today}参照.'])
+        if 'url' in ref:
+            a_tag = soup.new_tag('a', href=ref['url'])
+            a_tag['class'] = 'asis'
+            li_tag.extend([', ', a_tag, f', {today}参照.'])
         ol_tag.append(li_tag)
         ol_tag.append('\n')
+
+
+def add_references_with_key(soup, references):
+    item = soup.find('div', class_='item')
+    ol_tag = item.find('ol', class_='ref')
+    if ol_tag is not None:
+        raise ValueError('There is a ol.ref')
+    dl_tag = item.find('dl', class_='ref')
+    if dl_tag is None:
+        h2_tag = item.find('h2', string='参考文献')
+        if h2_tag is None:
+            h2_tag = soup.new_tag('h2', string='参考文献')
+            item.append(h2_tag)
+            item.append('\n')
+        dl_tag = soup.new_tag('dl', attrs={'class': 'ref small'})
+        item.append(dl_tag)
+    today = datetime.datetime.now().strftime('%Y年%#m月%#d日')
+    for ref in references:
+        dt_tag = soup.new_tag('dt')
+        dt_tag.append(ref['key'])
+        dd_tag = soup.new_tag('dd')
+        dd_tag.append(BeautifulSoup(ref['title'], 'html.parser'))
+        if 'url' in ref:
+            a_tag = soup.new_tag('a', href=ref['url'])
+            a_tag['class'] = 'asis'
+            dd_tag.extend([', ', a_tag, f', {today}参照.'])
+        dl_tag.append(dt_tag)
+        dl_tag.append(dd_tag)
+        dl_tag.append('\n')
 
 
 def add_categories(soup, cats):
@@ -170,6 +203,8 @@ def clear_item(soup):
          elif child.name == 'h2' and child.string == '参考文献':
              pass
          elif _eq(child, 'ol.ref'):
+             _clear_children(child)
+         elif _eq(child, 'dl.ref'):
              _clear_children(child)
          else:
              clear = True

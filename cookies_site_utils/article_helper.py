@@ -66,6 +66,11 @@ class ArticleHelper:
                     soup, _ = ape.parse()
                 su.add_references(soup, job['references'])
 
+            if job['job_type'] == 'ADD_REFERENCES_WITH_KEY':
+                if soup is None:
+                    soup, _ = ape.parse()
+                su.add_references_with_key(soup, job['references'])
+
         if soup is not None:
             ape.generate_from_soup(soup)
 

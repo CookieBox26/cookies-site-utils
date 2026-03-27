@@ -101,6 +101,40 @@ def test_add_references():
     assert len(refs) == 3
 
 
+def test_add_references_with_key():
+    html = '''
+    <div class="item">
+    </div>
+    '''
+    soup = BeautifulSoup(html.replace('    ', ''), 'html.parser')
+    su.add_references_with_key(soup, [
+       {'key': 'a', 'title': 'あああ', 'url': 'aaa'},
+    ])
+    h2_tag = soup.find_all('h2', string='参考文献')
+    assert len(h2_tag) == 1
+    refs = soup.find('dl', class_='ref').find_all('dt')
+    assert len(refs) == 1
+
+    html = '''
+    <div class="item">
+    <h2>参考文献</h2>
+    <dl class="ref">
+    <dt>a</dt>
+    <dd>あああ, <a class="asis" href="aaa"></a>, 2026年3月15日参照.</dd>
+    </dl>
+    </div>
+    '''
+    soup = BeautifulSoup(html.replace('    ', ''), 'html.parser')
+    su.add_references_with_key(soup, [
+       {'key': 'i', 'title': 'いいい', 'url': 'iii'},
+       {'key': 'u', 'title': 'ううう', 'url': 'uuu'},
+    ])
+    h2_tag = soup.find_all('h2', string='参考文献')
+    assert len(h2_tag) == 1
+    refs = soup.find('dl', class_='ref').find_all('dt')
+    assert len(refs) == 3
+
+
 def test_add_categories():
     html = '''
     <div class="item">
