@@ -22,6 +22,8 @@ class PageCharCounter:
     def __init__(self):
         self.closing_tag = re.compile(r'(</[^>]+>)\n+')
         self.inline_tags = {'span', 'a', 'code'}
+        self.void_tags = {'br', 'hr'}
+        self.void_tag = re.compile(r'(<(br|hr)\s*/?>)\n+')
 
     def _closing_tag_repl(self, match):
         tag = match.group(1)
@@ -29,8 +31,13 @@ class PageCharCounter:
             return tag + '\n'
         return tag
 
+    def _void_tag_repl(self, match):
+        return match.group(1)
+
     def normalize(self, text):
-        return self.closing_tag.sub(self._closing_tag_repl, text)
+        text = self.closing_tag.sub(self._closing_tag_repl, text)
+        text = self.void_tag.sub(self._void_tag_repl, text)
+        return text
 
     def __call__(self, text):
         return len(self.normalize(text))
