@@ -1,5 +1,6 @@
 import cookies_site_utils.soup_util as su
 from bs4 import BeautifulSoup
+import pytest
 
 
 def test_start_tag():
@@ -141,7 +142,10 @@ def test_add_categories():
     </div>
     '''
     soup = BeautifulSoup(html.replace('    ', ''), 'html.parser')
-    su.add_categories(soup, {'aaa': 'あああ', 'iii': 'いいい'})
+    su.add_categories(soup, [
+        {'path': 'aaa', 'name': 'あああ'},
+        {'path': 'iii', 'name': 'いいい'},
+    ])
     cats = soup.find('div', class_='categories').find_all('a')
     assert len(cats) == 2
 
@@ -154,9 +158,25 @@ def test_add_categories():
     </div>
     '''
     soup = BeautifulSoup(html.replace('    ', ''), 'html.parser')
-    su.add_categories(soup, {'uuu': 'ううう', 'eee': 'えええ'})
+    su.add_categories(soup, [
+        {'path': 'uuu', 'name': 'ううう'},
+        {'path': 'eee', 'name': 'えええ'},
+    ])
     cats = soup.find('div', class_='categories').find_all('a')
     assert len(cats) == 4
+
+    soup = BeautifulSoup(html.replace('    ', ''), 'html.parser')
+    su.add_categories(soup, [
+        {'path': 'aaa', 'name': 'あああ'},
+    ])
+    cats = soup.find('div', class_='categories').find_all('a')
+    assert len(cats) == 2
+
+    soup = BeautifulSoup(html.replace('    ', ''), 'html.parser')
+    with pytest.raises(ValueError):
+        su.add_categories(soup, [
+            {'path': 'aaa', 'name': 'ああああ'},
+        ])
 
 
 def test_clear_item():

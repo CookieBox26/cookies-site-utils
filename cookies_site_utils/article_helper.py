@@ -49,17 +49,17 @@ class ArticleHelper:
                     raise ValueError(f'{ape.path} exists.')
                 ape_base = ArticlePageEx(job['base_path'], cls.subsite_name)
                 soup = ape_base.copy_soup(job['new_title'])
-                su.add_categories(soup, job['categories'])
+                cats = job['categories']
+                if isinstance(cats, dict):
+                    cats = []
+                    for k, v in job['categories'].items():
+                        cats.append({'path': k, 'name': v})
+                su.add_categories(soup, cats)
 
-            if job['job_type'] == 'UPDATE_TIMESTAMP':
+            if job['job_type'] == 'ADD_CATEGORIES':
                 if soup is None:
                     soup, _ = ape.parse()
-                parent = ape.path.resolve().parent
-                if ape.path in ArticleHelper.templates:
-                    parent = ArticleHelper.templates[ape.path]
-                su.update_timestamp(
-                    soup, parent, job['resource'], job['timestamp'],
-                )
+                su.add_categories(soup, job['categories'])
 
             if job['job_type'] == 'ADD_REFERENCES':
                 if soup is None:
@@ -70,6 +70,16 @@ class ArticleHelper:
                 if soup is None:
                     soup, _ = ape.parse()
                 su.add_references_with_key(soup, job['references'])
+
+            if job['job_type'] == 'UPDATE_TIMESTAMP':
+                if soup is None:
+                    soup, _ = ape.parse()
+                parent = ape.path.resolve().parent
+                if ape.path in ArticleHelper.templates:
+                    parent = ArticleHelper.templates[ape.path]
+                su.update_timestamp(
+                    soup, parent, job['resource'], job['timestamp'],
+                )
 
         if soup is not None:
             ape.generate_from_soup(soup)

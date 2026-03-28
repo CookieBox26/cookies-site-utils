@@ -2,6 +2,8 @@ from bs4 import BeautifulSoup, Doctype, Tag, Comment, NavigableString
 from pathlib import Path
 import os
 import datetime
+import logging
+logger = logging.getLogger(__name__)
 
 
 def _fmt(s):
@@ -173,8 +175,32 @@ def add_categories(soup, cats):
         and isinstance(div_tag.contents[-1], NavigableString)
     ):
         div_tag.contents[-1].extract()
-    n = len(div_tag.find_all('a'))
-    for cat_path, cat_name in cats.items():
+
+    cats_old = {
+        Path(a.get('href')).stem: a.get_text() for
+        a in div_tag.find_all('a')
+    }
+    cat_names_old = {v: k for k, v in cats_old.items()}
+
+    n = len(cats_old)
+    for cat in cats:
+        cat_path = cat['path']
+        cat_name = cat['name']
+        if cat_path in cats_old:
+            if cat_name == cats_old[cat_path]:
+                logging.info(
+                    f'Already registered: path={cat_path}, name={cat_name}'
+                )
+                continue
+            raise ValueError(
+                f'Already registered with different name: '
+                f'path={cat_path}, new={cat_name}, old={cats_old[cat_path]}'
+            )
+        elif cat_name in cat_names_old:
+            raise ValueError(
+                f'Already registered with different path: name={cat_name}, '
+                f'new={cat_path}, old={cat_names_old[cat_name]}'
+            )
         a_tag = soup.new_tag('a', href=f'../categories/{cat_path}.html')
         a_tag.string = cat_name
         if n != 0:
