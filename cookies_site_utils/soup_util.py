@@ -56,7 +56,10 @@ def _decode(node):
                 elif child.name in ['h1', 'div', 'ul', 'ol']:
                     decoded = decoded.rstrip('\n') + '\n'
                 _decoded = child.decode()
-                if child.name in ['ul', 'ol'] or _eq(child, 'div.categories'):
+                if (
+                    child.name in ['ul', 'ol', 'dl']
+                    or _eq(child, 'div.categories')
+                ):
                     _decoded = _fmt(_decoded)
                 decoded += _decoded
         elif isinstance(child, Comment):
@@ -123,8 +126,13 @@ def add_references(soup, references):
             item.append('\n')
         ol_tag = soup.new_tag('ol', attrs={'class': 'ref small'})
         item.append(ol_tag)
+
     today = datetime.datetime.now().strftime('%Y年%#m月%#d日')
+    urls_existing = {a.get('href') for a in ol_tag.find_all('a')}
     for ref in references:
+        if 'url' in ref and ref['url'] in urls_existing:
+            logging.info(f'Already registered: url={ref["url"]}')
+            continue
         li_tag = soup.new_tag('li')
         li_tag.append(BeautifulSoup(ref['title'], 'html.parser'))
         if 'url' in ref:
@@ -149,8 +157,13 @@ def add_references_with_key(soup, references):
             item.append('\n')
         dl_tag = soup.new_tag('dl', attrs={'class': 'ref small'})
         item.append(dl_tag)
+
     today = datetime.datetime.now().strftime('%Y年%#m月%#d日')
+    urls_existing = {a.get('href') for a in dl_tag.find_all('a')}
     for ref in references:
+        if 'url' in ref and ref['url'] in urls_existing:
+            logging.info(f'Already registered: url={ref["url"]}')
+            continue
         dt_tag = soup.new_tag('dt')
         dt_tag.append(ref['key'])
         dd_tag = soup.new_tag('dd')
@@ -160,6 +173,7 @@ def add_references_with_key(soup, references):
             a_tag['class'] = 'asis'
             dd_tag.extend([', ', a_tag, f', {today}参照.'])
         dl_tag.append(dt_tag)
+        dl_tag.append('\n')
         dl_tag.append(dd_tag)
         dl_tag.append('\n')
 

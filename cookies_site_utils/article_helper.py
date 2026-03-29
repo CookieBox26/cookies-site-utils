@@ -2,6 +2,7 @@ from cookies_site_utils.builder import ArticlePage
 import cookies_site_utils.soup_util as su
 from pathlib import Path
 import toml
+import os
 import subprocess
 import logging
 logger = logging.getLogger(__name__)
@@ -89,6 +90,9 @@ class ArticleHelper:
     @classmethod
     def run(cls, conf_path):
         conf = toml.loads(Path(conf_path).read_text(encoding='utf8'))
+        if 'working_dir' in conf:
+            os.chdir(Path(conf['working_dir']).expanduser())
+            logger.info('Switched to directory: ' + conf['working_dir'])
         if 'subsite_name' in conf:
             cls.subsite_name = conf['subsite_name']
         if 'templates' in conf:
@@ -110,6 +114,7 @@ class ArticleHelper:
                     ape, soup = cls.run_job_group(path, job_group['jobs'])
 
         if soup is not None:
+            subprocess.run(['git', 'status'])
             if 'text_editor' in conf:
                 subprocess.Popen([conf['text_editor'], ape.path.resolve()])
             if 'web_browser' in conf:
