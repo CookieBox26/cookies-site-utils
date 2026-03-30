@@ -158,20 +158,31 @@ def add_references_with_key(soup, references):
         dl_tag = soup.new_tag('dl', attrs={'class': 'ref small'})
         item.append(dl_tag)
 
-    today = datetime.datetime.now().strftime('%Y年%#m月%#d日')
+    # today = datetime.datetime.now().strftime('%Y年%#m月%#d日')
     urls_existing = {a.get('href') for a in dl_tag.find_all('a')}
     for ref in references:
-        if 'url' in ref and ref['url'] in urls_existing:
-            logging.info(f'Already registered: url={ref["url"]}')
-            continue
+        if 'urls' in ref and len(ref['urls']) > 0:
+            exist = False
+            for url in ref['urls']:
+                if url in urls_existing:
+                    logging.info(f'Already registered: url={url}')
+                    exist = True
+                    break
+            if exist:
+                continue
         dt_tag = soup.new_tag('dt')
         dt_tag.append(ref['key'])
         dd_tag = soup.new_tag('dd')
         dd_tag.append(BeautifulSoup(ref['title'], 'html.parser'))
-        if 'url' in ref:
-            a_tag = soup.new_tag('a', href=ref['url'])
-            a_tag['class'] = 'asis'
-            dd_tag.extend([', ', a_tag, f', {today}参照.'])
+        if 'urls' in ref and len(ref['urls']) > 0:
+            for url in ref['urls']:
+                a_tag = soup.new_tag('a', href=url)
+                a_tag['class'] = 'asis'
+                li_tag = soup.new_tag('li')
+                li_tag.append(a_tag)
+                ul_tag = soup.new_tag('ul')
+                ul_tag.append(li_tag)
+                dd_tag.append(ul_tag)
         dl_tag.append(dt_tag)
         dl_tag.append('\n')
         dl_tag.append(dd_tag)

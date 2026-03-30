@@ -101,6 +101,15 @@ def test_add_references():
     refs = soup.find('ol', class_='ref').find_all('li')
     assert len(refs) == 3
 
+    su.add_references(soup, [
+       {'title': 'いいい', 'url': 'iii'},
+       {'title': 'ううう', 'url': 'uuu'},
+    ])
+    h2_tag = soup.find_all('h2', string='参考文献')
+    assert len(h2_tag) == 1
+    refs = soup.find('ol', class_='ref').find_all('li')
+    assert len(refs) == 3
+
 
 def test_add_references_with_key():
     html = '''
@@ -109,7 +118,7 @@ def test_add_references_with_key():
     '''
     soup = BeautifulSoup(html.replace('    ', ''), 'html.parser')
     su.add_references_with_key(soup, [
-       {'key': 'a', 'title': 'あああ', 'url': 'aaa'},
+       {'key': 'a', 'title': 'あああ', 'urls': ['aaa']},
     ])
     h2_tag = soup.find_all('h2', string='参考文献')
     assert len(h2_tag) == 1
@@ -121,14 +130,27 @@ def test_add_references_with_key():
     <h2>参考文献</h2>
     <dl class="ref">
     <dt>a</dt>
-    <dd>あああ, <a class="asis" href="aaa"></a>, 2026年3月15日参照.</dd>
+    <dd>あああ.
+    <ul>
+    <li><a class="asis" href="aaa"></a></li>
+    </ul>
+    </dd>
     </dl>
     </div>
     '''
     soup = BeautifulSoup(html.replace('    ', ''), 'html.parser')
     su.add_references_with_key(soup, [
-       {'key': 'i', 'title': 'いいい', 'url': 'iii'},
-       {'key': 'u', 'title': 'ううう', 'url': 'uuu'},
+       {'key': 'i', 'title': 'いいい', 'urls': ['iii']},
+       {'key': 'u', 'title': 'ううう', 'urls': ['uuu']},
+    ])
+    h2_tag = soup.find_all('h2', string='参考文献')
+    assert len(h2_tag) == 1
+    refs = soup.find('dl', class_='ref').find_all('dt')
+    assert len(refs) == 3
+
+    su.add_references_with_key(soup, [
+       {'key': 'i', 'title': 'いいい', 'urls': ['iii']},
+       {'key': 'u', 'title': 'ううう', 'urls': ['uuu']},
     ])
     h2_tag = soup.find_all('h2', string='参考文献')
     assert len(h2_tag) == 1
