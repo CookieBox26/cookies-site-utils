@@ -158,14 +158,13 @@ def add_references_with_key(soup, references):
         dl_tag = soup.new_tag('dl', attrs={'class': 'ref small'})
         item.append(dl_tag)
 
-    # today = datetime.datetime.now().strftime('%Y年%#m月%#d日')
-    urls_existing = {a.get('href') for a in dl_tag.find_all('a')}
     for ref in references:
         if 'urls' in ref and len(ref['urls']) > 0:
             exist = False
-            for url in ref['urls']:
-                if url in urls_existing:
-                    logging.info(f'Already registered: url={url}')
+            for dd_tag in dl_tag.find_all('dd'):
+                urls_existing = [a.get('href') for a in dd_tag.find_all('a')]
+                if ref['urls'] == urls_existing:
+                    logging.info('Already registered: ' + str(urls_existing))
                     exist = True
                     break
             if exist:

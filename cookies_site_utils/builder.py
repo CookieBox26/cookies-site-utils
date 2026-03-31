@@ -187,17 +187,29 @@ class CategoryPage(Page):
         super().__init__(path, subsite_name)
         self.cat_name = cat_name
         self.articles = []
+        self.articles_with_subcat = {}
 
     def generate_from_template(self, template):
         self.articles.sort(key=lambda a: a.title)
+        list_article = Page.as_ul_of_links(
+            self.articles, self.path, with_ts=True,
+        )
+        n_articles = len(self.articles)
+        if len(self.articles_with_subcat) > 0:
+            self.articles_with_subcat = \
+                list(sorted(self.articles_with_subcat.items()))
+            for subcat, articles in self.articles_with_subcat:
+                articles.sort(key=lambda a: a.title)
+                n_articles += len(articles)
+                list_article += f'\n<h3>{subcat}</h3>\n'
+                list_article += Page.as_ul_of_links(
+                    articles, self.path, with_ts=True,
+                )
+
         context = {
             'category_name': self.cat_name,
-            'n_articles': len(self.articles),
-            'list_article': Page.as_ul_of_links(
-                self.articles,
-                self.path,
-                with_ts=True,
-            ),
+            'n_articles': n_articles,
+            'list_article': list_article,
         }
         context.update(CategoryPage.additional_context)
         super().generate_from_template(template, context)
@@ -220,7 +232,13 @@ class ArticlePage(Page):
                     all_cat_paths.add(cat_path)
                 elif cat_path != all_cats[cat_name].path:
                     self.raise_error(f'カテゴリページパスのゆれ {cat_path}')
-                all_cats[cat_name].articles.append(self)
+                subcat = cat.get('data-subcat')
+                if subcat is None:
+                    all_cats[cat_name].articles.append(self)
+                else:
+                    if subcat not in all_cats[cat_name].articles_with_subcat:
+                        all_cats[cat_name].articles_with_subcat[subcat] = []
+                    all_cats[cat_name].articles_with_subcat[subcat].append(self)
 
 
 class IndexPage(Page):
