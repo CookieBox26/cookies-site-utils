@@ -210,6 +210,7 @@ def add_categories(soup, cats):
     for cat in cats:
         cat_path = cat['path']
         cat_name = cat['name']
+        subcat = cat.get('subcat')
         if cat_path in cats_old:
             if cat_name == cats_old[cat_path]:
                 logging.info(
@@ -227,6 +228,8 @@ def add_categories(soup, cats):
             )
         a_tag = soup.new_tag('a', href=f'../categories/{cat_path}.html')
         a_tag.string = cat_name
+        if subcat is not None:
+            a_tag['data-subcat'] = subcat
         if n != 0:
             div_tag.append(' |\n')
         div_tag.append(a_tag)
