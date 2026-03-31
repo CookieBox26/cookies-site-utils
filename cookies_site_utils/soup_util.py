@@ -233,6 +233,7 @@ def add_categories(soup, cats):
         if n != 0:
             div_tag.append(' |\n')
         div_tag.append(a_tag)
+        n += 1
 
 
 def _clear_children(element, replace_to=''):
