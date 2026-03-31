@@ -78,6 +78,8 @@ class ArticleHelper:
                 parent = ape.path.resolve().parent
                 if ape.path in ArticleHelper.templates:
                     parent = ArticleHelper.templates[ape.path]
+                    if ape.path.stem == 'index_template':
+                        ape.is_index = True
                 su.update_timestamp(
                     soup, parent, job['resource'], job['timestamp'],
                 )
