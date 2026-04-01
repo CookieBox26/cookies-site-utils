@@ -6,6 +6,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _confirm(prompt):
+    return input(prompt + ' [y/N]: ').strip().lower() == 'y'
+
+
 def _fmt(s):
     i = s.find('>')
     if i != -1 and (i + 1 >= len(s) or s[i+1] != '\n'):
@@ -159,33 +163,38 @@ def add_references_with_key(soup, references):
         item.append(dl_tag)
 
     for ref in references:
-        if 'urls' in ref and len(ref['urls']) > 0:
-            exist = False
-            for dd_tag in dl_tag.find_all('dd'):
-                urls_existing = [a.get('href') for a in dd_tag.find_all('a')]
-                if ref['urls'] == urls_existing:
-                    logging.info('Already registered: ' + str(urls_existing))
-                    exist = True
-                    break
-            if exist:
-                continue
-        dt_tag = soup.new_tag('dt')
-        dt_tag.append(ref['key'])
         dd_tag = soup.new_tag('dd')
-        dd_tag.append(BeautifulSoup(ref['title'], 'html.parser'))
+        dd_tag.append(BeautifulSoup(
+            '\n' + ref['title'].strip(),
+            'html.parser',
+        ))
         if 'urls' in ref and len(ref['urls']) > 0:
+            ul_tag = soup.new_tag('ul')
             for url in ref['urls']:
                 a_tag = soup.new_tag('a', href=url)
                 a_tag['class'] = 'asis'
                 li_tag = soup.new_tag('li')
                 li_tag.append(a_tag)
-                ul_tag = soup.new_tag('ul')
-                ul_tag.append(li_tag)
-                dd_tag.append(ul_tag)
-        dl_tag.append(dt_tag)
-        dl_tag.append('\n')
-        dl_tag.append(dd_tag)
-        dl_tag.append('\n')
+                ul_tag.extend(['\n', li_tag])
+            ul_tag.append('\n')
+            dd_tag.extend(['\n', ul_tag, '\n'])
+
+        dt_tag = next(
+            (dt for dt in dl_tag.find_all('dt') if dt.get_text() == ref['key']),
+            None,
+        )
+        if dt_tag is not None:
+            dd_tag_existing = dt_tag.find_next_sibling('dd')
+            logging.info(f'Already registered: key={ref["key"]}')
+            logging.info(f'\n{dd_tag_existing}')
+            logging.info(f'Your input:\n{dd_tag}')
+            if not _confirm('citation を上書きしますか？'):
+                continue
+            dd_tag_existing.replace_with(dd_tag)
+        else:
+            dt_tag = soup.new_tag('dt')
+            dt_tag.append(ref['key'])
+            dl_tag.extend([dt_tag, '\n', dd_tag, '\n'])
 
 
 def add_categories(soup, cats):

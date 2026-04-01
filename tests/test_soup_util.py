@@ -111,7 +111,7 @@ def test_add_references():
     assert len(refs) == 3
 
 
-def test_add_references_with_key():
+def test_add_references_with_key(monkeypatch):
     html = '''
     <div class="item">
     </div>
@@ -130,7 +130,7 @@ def test_add_references_with_key():
     <h2>参考文献</h2>
     <dl class="ref">
     <dt>a</dt>
-    <dd>あああ.
+    <dd>あああ
     <ul>
     <li><a class="asis" href="aaa"></a></li>
     </ul>
@@ -141,21 +141,34 @@ def test_add_references_with_key():
     soup = BeautifulSoup(html.replace('    ', ''), 'html.parser')
     su.add_references_with_key(soup, [
        {'key': 'i', 'title': 'いいい', 'urls': ['iii']},
-       {'key': 'u', 'title': 'ううう', 'urls': ['uuu']},
+       {'key': 'u', 'title': 'ううう', 'urls': ['uuu', 'uuuu']},
     ])
-    h2_tag = soup.find_all('h2', string='参考文献')
-    assert len(h2_tag) == 1
     refs = soup.find('dl', class_='ref').find_all('dt')
     assert len(refs) == 3
 
+    monkeypatch.setattr('builtins.input', lambda _: 'n')
     su.add_references_with_key(soup, [
        {'key': 'i', 'title': 'いいい', 'urls': ['iii']},
-       {'key': 'u', 'title': 'ううう', 'urls': ['uuu']},
+       {'key': 'u', 'title': 'ううう', 'urls': ['uuu', 'uuuu']},
     ])
-    h2_tag = soup.find_all('h2', string='参考文献')
-    assert len(h2_tag) == 1
     refs = soup.find('dl', class_='ref').find_all('dt')
     assert len(refs) == 3
+
+    monkeypatch.setattr('builtins.input', lambda _: 'n')
+    su.add_references_with_key(soup, [
+       {'key': 'i', 'title': 'いいいい', 'urls': ['iiii']},
+    ])
+    refs = soup.find('dl', class_='ref').find_all('dt')
+    assert len(refs) == 3
+    assert soup.find_all('a')[1]['href'] == 'iii'
+
+    monkeypatch.setattr('builtins.input', lambda _: 'y')
+    su.add_references_with_key(soup, [
+       {'key': 'i', 'title': 'いいいい', 'urls': ['iiii']},
+    ])
+    refs = soup.find('dl', class_='ref').find_all('dt')
+    assert len(refs) == 3
+    assert soup.find_all('a')[1]['href'] == 'iiii'
 
 
 def test_add_categories():
