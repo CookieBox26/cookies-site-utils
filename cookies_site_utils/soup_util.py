@@ -147,6 +147,20 @@ def add_references(soup, references):
         ol_tag.append('\n')
 
 
+def _dd_signature(dd: Tag):
+    direct_texts = []
+    links = []
+    for child in dd.children:
+        if isinstance(child, NavigableString):
+            text = str(child).strip()
+            if text:
+                direct_texts.append(text)
+        elif isinstance(child, Tag):
+            for a in child.find_all('a'):
+                links.append((a.get('href'), a.get_text(strip=True)))
+    return (tuple(direct_texts), tuple(links))
+
+
 def add_references_with_key(soup, references):
     item = soup.find('div', class_='item')
     ol_tag = item.find('ol', class_='ref')
@@ -185,10 +199,13 @@ def add_references_with_key(soup, references):
         )
         if dt_tag is not None:
             dd_tag_existing = dt_tag.find_next_sibling('dd')
+            if _dd_signature(dt_tag) == _dd_signature(dd_tag_existing):
+                logging.info(f'No updates: key={ref["key"]}')
+                continue
             logging.info(f'Already registered: key={ref["key"]}')
             logging.info(f'\n{dd_tag_existing}')
             logging.info(f'Your input:\n{dd_tag}')
-            if not _confirm('citation を上書きしますか？'):
+            if not _confirm('Overwrite?'):
                 continue
             dd_tag_existing.replace_with(dd_tag)
         else:
