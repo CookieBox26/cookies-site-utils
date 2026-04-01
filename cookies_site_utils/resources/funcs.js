@@ -206,9 +206,55 @@ function secureExternalLinks(root = document) {
   });
 }
 
+function linkRefs() {
+  const seen = new Set();
+  const dts = document.querySelectorAll('dl.ref dt');
+  const item = document.querySelector('div.item');
+  dts.forEach((dt, i) => {
+    const key = dt.textContent.trim();
+    if (seen.has(key)) {
+      dt.style.color = 'red';
+      return;
+    }
+    seen.add(key);
+    dt.innerHTML = `${i + 1}`;
+    const id = 'ref' + String(i + 1).padStart(2, '0');
+    dt.id = id;
+    item.querySelectorAll('p, li').forEach(p => {
+      p.innerHTML = p.innerHTML.replaceAll(
+        `[${key}]`, `<a href="#${id}">[${i + 1}]</a>`,
+      );
+    });
+  });
+}
+
+function linkFootnotes() {
+  const seen = new Set();
+  const dts = document.querySelectorAll('dl.footnote dt');
+  const item = document.querySelector('div.item');
+  dts.forEach((dt, i) => {
+    const key = dt.textContent.trim();
+    if (seen.has(key)) {
+      dt.style.color = 'red';
+      return;
+    }
+    seen.add(key);
+    dt.innerHTML = `${i + 1}`;
+    const id = 'footnote' + String(i + 1).padStart(2, '0');
+    dt.id = id;
+    item.querySelectorAll('p, li').forEach(p => {
+      p.innerHTML = p.innerHTML.replaceAll(
+        `[脚注${key}]`, `<a href="#${id}">[脚注${i + 1}]</a>`,
+      );
+    });
+  });
+}
+
 function init(repo, isIndex = false, isTop = false, lang = 'ja') {
   createSidebar(repo, isIndex, isTop, lang);
   secureExternalLinks();
+  linkRefs();
+  linkFootnotes();
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
