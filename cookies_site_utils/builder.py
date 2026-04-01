@@ -190,16 +190,18 @@ class CategoryPage(Page):
         self.articles_with_subcat = {}
 
     def generate_from_template(self, template):
-        self.articles.sort(key=lambda a: a.title)
+        self.articles.sort(key=lambda a: a.title.lower())
         list_article = Page.as_ul_of_links(
             self.articles, self.path, with_ts=True,
         )
         n_articles = len(self.articles)
         if len(self.articles_with_subcat) > 0:
-            self.articles_with_subcat = \
-                list(sorted(self.articles_with_subcat.items()))
+            self.articles_with_subcat = list(sorted(
+                self.articles_with_subcat.items(),
+                key=lambda x: x[0].lower(),
+            ))
             for subcat, articles in self.articles_with_subcat:
-                articles.sort(key=lambda a: a.title)
+                articles.sort(key=lambda a: a.title.lower())
                 n_articles += len(articles)
                 list_article += f'\n<h3>{subcat}</h3>\n'
                 list_article += Page.as_ul_of_links(
@@ -285,7 +287,7 @@ class IndexPage(Page):
         self.articles, self.all_cats, all_cat_paths = self.collect_articles()
 
         # 「記事一覧」 (タイトル順ソート)
-        self.articles.sort(key=lambda a: a.title)
+        self.articles.sort(key=lambda a: a.title.lower())
         list_article = Page.as_ul_of_links(self.articles, self.path, with_ts=True)
 
         # 「更新日が新しい記事」 (同一更新日はタイトル順に)
@@ -295,10 +297,10 @@ class IndexPage(Page):
         )
 
         # 無駄なサイトマップ更新を防ぐためタイトル順に戻しておく
-        self.articles.sort(key=lambda a: a.title)
+        self.articles.sort(key=lambda a: a.title.lower())
 
         # カテゴリページ生成
-        self.all_cats.sort(key=lambda c: c.cat_name)
+        self.all_cats.sort(key=lambda c: c.cat_name.lower())
         if cat_template_path.is_file():
             self.generate_categories(cat_template_path, all_cat_paths)
         print(self.all_cats[0].path)
