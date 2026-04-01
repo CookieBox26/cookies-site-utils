@@ -199,7 +199,7 @@ def add_references_with_key(soup, references):
         )
         if dt_tag is not None:
             dd_tag_existing = dt_tag.find_next_sibling('dd')
-            if _dd_signature(dt_tag) == _dd_signature(dd_tag_existing):
+            if _dd_signature(dd_tag) == _dd_signature(dd_tag_existing):
                 logging.info(f'No updates: key={ref["key"]}')
                 continue
             logging.info(f'Already registered: key={ref["key"]}')

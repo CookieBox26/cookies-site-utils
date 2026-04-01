@@ -111,6 +111,40 @@ def test_add_references():
     assert len(refs) == 3
 
 
+def test_dd_signature():
+    def make_dd(html):
+        return BeautifulSoup(html, 'html.parser').find('dd')
+
+    a_aaa = '<a href="aaa">タイトル</a>'
+    a_bbb = '<a href="bbb">タイトル</a>'
+    li_aaa = f'<li>{a_aaa}</li>'
+    li_bbb = f'<li>{a_bbb}</li>'
+
+    # テキストと URL が同じなら同一シグネチャ
+    dd1 = make_dd(f'<dd>あああ<ul>{li_aaa}</ul></dd>')
+    dd2 = make_dd(f'<dd>あああ<ul>{li_aaa}</ul></dd>')
+    assert su._dd_signature(dd1) == su._dd_signature(dd2)
+
+    # テキストが異なれば別シグネチャ
+    dd3 = make_dd(f'<dd>いいい<ul>{li_aaa}</ul></dd>')
+    assert su._dd_signature(dd1) != su._dd_signature(dd3)
+
+    # URL が異なれば別シグネチャ
+    dd4 = make_dd(f'<dd>あああ<ul>{li_bbb}</ul></dd>')
+    assert su._dd_signature(dd1) != su._dd_signature(dd4)
+
+    # URL なしの dd は links が空タプル
+    dd5 = make_dd('<dd>あああ</dd>')
+    assert su._dd_signature(dd5) == (('あああ',), ())
+
+    # 複数 URL はすべてリンクに含まれる
+    dd6 = make_dd(f'<dd>あああ<ul>{li_aaa}{li_bbb}</ul></dd>')
+    dd7 = make_dd(f'<dd>あああ<ul>{li_aaa}{li_bbb}</ul></dd>')
+    assert su._dd_signature(dd6) == su._dd_signature(dd7)
+    dd8 = make_dd(f'<dd>あああ<ul>{li_aaa}</ul></dd>')
+    assert su._dd_signature(dd6) != su._dd_signature(dd8)
+
+
 def test_add_references_with_key(monkeypatch):
     html = '''
     <div class="item">
@@ -146,26 +180,35 @@ def test_add_references_with_key(monkeypatch):
     refs = soup.find('dl', class_='ref').find_all('dt')
     assert len(refs) == 3
 
-    monkeypatch.setattr('builtins.input', lambda _: 'n')
+    # 同一内容なら input が呼ばれない (No updates)
+    calls = []
+    monkeypatch.setattr('builtins.input', lambda p: calls.append(p) or 'n')
     su.add_references_with_key(soup, [
        {'key': 'i', 'title': 'いいい', 'urls': ['iii']},
        {'key': 'u', 'title': 'ううう', 'urls': ['uuu', 'uuuu']},
     ])
+    assert len(calls) == 0
     refs = soup.find('dl', class_='ref').find_all('dt')
     assert len(refs) == 3
 
-    monkeypatch.setattr('builtins.input', lambda _: 'n')
+    # 異なる内容なら input が呼ばれる (Already registered)
+    calls = []
+    monkeypatch.setattr('builtins.input', lambda p: calls.append(p) or 'n')
     su.add_references_with_key(soup, [
        {'key': 'i', 'title': 'いいいい', 'urls': ['iiii']},
     ])
+    assert len(calls) == 1
     refs = soup.find('dl', class_='ref').find_all('dt')
     assert len(refs) == 3
     assert soup.find_all('a')[1]['href'] == 'iii'
 
-    monkeypatch.setattr('builtins.input', lambda _: 'y')
+    # 上書きを承認したら dd が更新される
+    calls = []
+    monkeypatch.setattr('builtins.input', lambda p: calls.append(p) or 'y')
     su.add_references_with_key(soup, [
        {'key': 'i', 'title': 'いいいい', 'urls': ['iiii']},
     ])
+    assert len(calls) == 1
     refs = soup.find('dl', class_='ref').find_all('dt')
     assert len(refs) == 3
     assert soup.find_all('a')[1]['href'] == 'iiii'
