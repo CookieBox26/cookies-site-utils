@@ -47,15 +47,21 @@ class ArticleHelper:
 
             if job['job_type'] == 'COPY_FROM':
                 if ape.path.exists():
-                    raise ValueError(f'{ape.path} exists.')
+                    exist_ok = job.get('exist_ok', 'False')
+                    if exist_ok:
+                        logger.warning(f'{ape.path} exists.')
+                        continue
+                    else:
+                        raise ValueError(f'{ape.path} exists.')
                 ape_base = ArticlePageEx(job['base_path'], cls.subsite_name)
                 soup = ape_base.copy_soup(job['new_title'])
-                cats = job['categories']
+                cats = job.get('categories')
                 if isinstance(cats, dict):
                     cats = []
                     for k, v in job['categories'].items():
                         cats.append({'path': k, 'name': v})
-                su.add_categories(soup, cats)
+                if isinstance(cats, list):
+                    su.add_categories(soup, cats)
 
             if job['job_type'] == 'ADD_CATEGORIES':
                 if soup is None:
