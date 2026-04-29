@@ -53,18 +53,22 @@ def _decode(node):
                 decoded = decoded.rstrip('\n') + '\n'
                 decoded += _fmt(_decode(child))
             else:
-                if child.name in ['h2'] or _eq(child, 'div.categories'):
+                if child.name in ['h2']:
                     decoded = decoded.rstrip('\n') + '\n\n\n'
-                elif child.name in ['h3']:
+                elif child.name in ['h3'] or _eq(child, 'div.categories'):
                     decoded = decoded.rstrip('\n') + '\n\n'
                 elif child.name in ['h1', 'div', 'ul', 'ol']:
                     decoded = decoded.rstrip('\n') + '\n'
+
                 _decoded = child.decode()
                 if (
                     child.name in ['ul', 'ol', 'dl']
                     or _eq(child, 'div.categories')
                 ):
                     _decoded = _fmt(_decoded)
+                if _eq(child, 'div.categories'):
+                    _decoded += '\n'
+
                 decoded += _decoded
         elif isinstance(child, Comment):
             decoded += f'<!--{child}-->'
